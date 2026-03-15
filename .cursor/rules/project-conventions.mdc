@@ -8,5 +8,5 @@ alwaysApply: true
 - **No new routers.** Single-page app; views are switched by state (see ViewOptionsProvider / main App).
 - **New views** go in `/views`, use existing contexts (TasksProvider, SettingsProvider, etc.) and hooks (useTaskManager, useUserProfileManager). Inline Tailwind only; no per-component CSS files.
 - **New UI** that’s reused goes in `/components`; business logic in `/hooks`, types in `/src/types`.
-- **AI/Claude:** Use `claudeService` (consumers may still import as `geminiService`). All AI responses are JSON; use `generateJson<T>()` in claudeService. No API keys in code — env only (see no-commit-secrets rule).
+- **AI/Claude:** Use `claudeService` for all AI; no Gemini/Google. All AI responses are JSON; use `generateJson<T>()` in claudeService. No API keys in code — env only (see no-commit-secrets rule).
 - **Firebase:** Paths `users/{uid}`, `users/{uid}/tasks`, `users/{uid}/quests`. Config in firebaseConfig.ts; API key from `VITE_FIREBASE_API_KEY` in env.

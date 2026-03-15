@@ -14,6 +14,7 @@ import {
 import * as claudeService from '../services/claudeService';
 
 const CACHE_DURATION_MS = 10 * 60 * 1000;
+const SUGGESTIONS_CACHE_KEY_PREFIX = 'taskmaster-suggestions-';
 
 const genericSuggestions: Suggestion[] = [
     {
@@ -61,6 +62,22 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, addTask
         const now = new Date();
         if (suggestionsLastFetched && (now.getTime() - suggestionsLastFetched.getTime() < CACHE_DURATION_MS)) return;
 
+        const cacheKey = `${SUGGESTIONS_CACHE_KEY_PREFIX}${user.uid}`;
+        try {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                const { dailySuggestions: cachedDaily, suggestionPool: cachedPool, timestamp } = JSON.parse(cached);
+                if (timestamp && now.getTime() - timestamp < CACHE_DURATION_MS && Array.isArray(cachedDaily) && Array.isArray(cachedPool)) {
+                    setDailySuggestions(cachedDaily);
+                    setSuggestionPool(cachedPool);
+                    setSuggestionsLastFetched(new Date(timestamp));
+                    return;
+                }
+            }
+        } catch (_) {
+            // Invalid or missing cache; fall through to fetch
+        }
+
         setIsSuggestionsLoading(true);
         setSuggestionsError(null);
         try {
@@ -70,9 +87,20 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, addTask
                 budget,
             );
             const withIds = fetched.map(s => ({ ...s, id: `sugg-${uuidv4()}` }));
-            setDailySuggestions(withIds.slice(0, 3));
-            setSuggestionPool(withIds.slice(3));
+            const daily = withIds.slice(0, 3);
+            const pool = withIds.slice(3);
+            setDailySuggestions(daily);
+            setSuggestionPool(pool);
             setSuggestionsLastFetched(new Date());
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    dailySuggestions: daily,
+                    suggestionPool: pool,
+                    timestamp: Date.now(),
+                }));
+            } catch (_) {
+                // localStorage full or disabled
+            }
         } catch (e: any) {
             setSuggestionsError(e.message || 'Failed to get suggestions.');
             setDailySuggestions(genericSuggestions.slice(0, 2));

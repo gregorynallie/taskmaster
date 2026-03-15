@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { UserProfile, UserStats, AIInsight, AIPersonaSummary, Task, Quest, ClarificationQuestion, Persona } from '../types';
-import * as geminiService from '../services/claudeService';
+import * as claudeService from '../services/claudeService';
 import { useAuth } from '../contexts/AuthProvider';
 import { db } from '../services/firebase';
 import { doc, onSnapshot, setDoc, updateDoc, getDoc, writeBatch } from 'firebase/firestore';
@@ -199,7 +199,7 @@ export const useUserProfileManager = () => {
     };
 
     const triggerAIInsightSynthesis = useCallback(async (tasks: Task[]) => {
-        const newInsights = await geminiService.synthesizeAIInsights(userProfile, tasks);
+        const newInsights = await claudeService.synthesizeAIInsights(userProfile, tasks);
         if (newInsights.length > 0) {
             const existingIds = new Set(userProfile.aiInsights.map(i => i.id));
             const trulyNew = newInsights.filter(i => !existingIds.has(i.id));
@@ -212,7 +212,7 @@ export const useUserProfileManager = () => {
     const generateAndSaveAIPersona = useCallback(async (correctiveFeedback?: string) => {
         if (userProfile.aiPersonaSummary?.status === 'updating') return;
         updateUserProfile({ aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'updating' } as AIPersonaSummary });
-        const summary = await geminiService.synthesizeUserProfileIntoPersona(userProfile, correctiveFeedback);
+        const summary = await claudeService.synthesizeUserProfileIntoPersona(userProfile, correctiveFeedback);
         if (summary) {
             updateUserProfile({ aiPersonaSummary: { ...summary, status: 'current' } });
         } else {
@@ -279,7 +279,7 @@ export const useUserProfileManager = () => {
             }
         });
 
-        const newQuestion = await geminiService.getNewClarificationQuestion(
+        const newQuestion = await claudeService.getNewClarificationQuestion(
             userProfile,
             userProfile.aiPersonaSummary.clarificationQuestions,
             { excludedCategories: [currentQuestion.category] }
@@ -307,7 +307,7 @@ export const useUserProfileManager = () => {
             }
         });
 
-        const newOptions = await geminiService.getNewQuestionOptions(userProfile, currentQuestion.question, currentQuestion.options || []);
+        const newOptions = await claudeService.getNewQuestionOptions(userProfile, currentQuestion.question, currentQuestion.options || []);
 
         const updatedQuestions = userProfile.aiPersonaSummary.clarificationQuestions.map(q =>
             q.id === questionIdToShuffle ? { ...q, isShufflingOptions: false, options: newOptions || q.options } : q

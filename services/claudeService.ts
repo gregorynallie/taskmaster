@@ -70,7 +70,7 @@ const generateJson = async <T>(systemPrompt: string, userPrompt: string, maxToke
 };
 
 // ---------------------------------------------------------------------------
-// Shared schema descriptions (mirrors the Gemini schemas as plain text)
+// Shared schema descriptions for JSON responses
 // ---------------------------------------------------------------------------
 
 const TASK_CATEGORIES_LIST = TASK_CATEGORIES.join(', ');
@@ -104,7 +104,7 @@ Additionally each suggestion object must also have:
 `;
 
 // ---------------------------------------------------------------------------
-// Exported API functions (identical signatures to geminiService.ts)
+// Exported API functions
 // ---------------------------------------------------------------------------
 
 export const generateStarterTasksFromOnboarding = async (answers: OnboardingAnswers, mode: Mode): Promise<EnrichedTaskData[]> => {

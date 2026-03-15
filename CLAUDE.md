@@ -32,7 +32,7 @@ Each context owns a domain and uses a custom hook for its logic:
 Firestore `onSnapshot` listeners keep tasks/quests/profile in sync across devices.
 
 ### AI Service (`services/claudeService.ts`)
-All functions have identical signatures to the old `geminiService.ts`. The 4 consumer files still use the `geminiService` alias:
+All AI calls use `claudeService` (Claude API via raw fetch). Consumers import from `../services/claudeService`.
 
 | Function | Trigger |
 |---|---|
@@ -47,7 +47,7 @@ All functions have identical signatures to the old `geminiService.ts`. The 4 con
 | `getInContextSuggestion` | In-list context insertion |
 | `getNewClarificationQuestion` | Profile refinement flow |
 
-All responses are JSON. `generateJson<T>()` handles parsing and strips markdown fences. The `thinkingBudget` param on `getSuggestions` is vestigial (from Gemini migration) — unused in current implementation.
+All responses are JSON. `generateJson<T>()` handles parsing and strips markdown fences.
 
 ### Core Types (`src/types/`)
 - `taskTypes.ts` — `Task`, `Quest`, `Suggestion`, `EnrichedTaskData`, `SuggestionFeedback`
@@ -65,7 +65,7 @@ Full iCal-style recurrence: `MINUTELY|HOURLY|DAILY|WEEKLY|MONTHLY|YEARLY` with `
 /views        — Page views (TodayView, ExploreView, QuestsView, RewardsView, YouView, SettingsView, JournalView)
 /contexts     — React contexts (Auth, Settings, Tasks, UserProfile, Gamification, LifeQuest, ViewOptions)
 /hooks        — Business logic hooks (useTaskManager, useUserProfileManager, etc.)
-/services     — claudeService.ts, geminiService.ts (legacy), firebase.ts, gamificationService.ts
+/services     — claudeService.ts, firebase.ts, gamificationService.ts
 /src/types    — All TypeScript types
 /src/themes   — 120+ theme definitions
 /utils        — dateUtils, taskUtils, animationUtils

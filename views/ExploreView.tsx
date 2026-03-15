@@ -5,7 +5,7 @@ import { useUserProfile } from '../contexts/UserProfileProvider';
 import { SuggestedTaskCard } from '../components/SuggestedTaskCard';
 import { Suggestion, SuggestionPill } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import * as geminiService from '../services/claudeService';
+import * as claudeService from '../services/claudeService';
 import { HeroWithInput } from '../components/HeroWithInput';
 import { ScheduleSuggestionModal } from '../components/ScheduleSuggestionModal';
 
@@ -29,7 +29,7 @@ export const ExploreView: React.FC = () => {
             setIsLoading(true);
             setError(null);
             try {
-                const initialApiSuggestions = await geminiService.getInitialExploreSuggestions(userProfile);
+                const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
                 if (isMounted) {
                     const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
                     setSuggestions(suggestionsWithIds);
@@ -64,7 +64,7 @@ export const ExploreView: React.FC = () => {
             setIsLoading(true); // Show "Thinking..." loader
             setSuggestions([]); // Clear the list so only the loader shows
             try {
-                const fetchedSuggestions = await geminiService.getDynamicSuggestions({
+                const fetchedSuggestions = await claudeService.getDynamicSuggestions({
                     prompt: currentPrompt,
                     userProfile,
                     count: 4,
@@ -104,7 +104,7 @@ export const ExploreView: React.FC = () => {
                 setAcceptedSuggestionId(null);
                 // After accepting, re-fetch initial suggestions.
                 const getInitialSuggestions = async () => {
-                    const initialApiSuggestions = await geminiService.getInitialExploreSuggestions(userProfile);
+                    const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
                     const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
                     setIsTransitioning(true);
                     setTimeout(() => {
@@ -127,7 +127,7 @@ export const ExploreView: React.FC = () => {
             setActivePrompt('');
             setAcceptedSuggestionId(null);
              const getInitialSuggestions = async () => {
-                const initialApiSuggestions = await geminiService.getInitialExploreSuggestions(userProfile);
+                const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
                 const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
                 setIsTransitioning(true);
                 setTimeout(() => {

@@ -1,3 +1,8 @@
+
+
+
+Template for TODO extension, don't edit:
+
 Projects:
   ☐ Anything with a colon at the end of the line is a project
   ☐ Projects will show some statistics next to them @1h
@@ -39,3 +44,23 @@ Formatting:
 Archive:
   ✔ You can archive finished todos here
   ✔ Congratulations, you are now a Todo+ master!
+
+TaskMaster Backlog:
+  Input & AI:
+    ☐ Add command-style task input (create/reschedule/complete/query) with clear confirmation before apply @high
+    ☐ Add disambiguation prompts when command target is unclear (multiple matching tasks) @high
+    ☐ Add "Plan my day" prompt mode that creates editable task drafts before save @high
+  Task List Behavior:
+    ☐ Add smart auto-reposition for recurring tasks on completion (with smooth animation) @high
+    ☐ Add pin-to-top tasks section that overrides group/sort/filter ordering @high
+  Explore:
+    ☐ Add suggestion type labels and filters (task/recurring/project/plan) @medium
+    ☐ Add Explore guidance controls (difficulty, duration, category, free-form direction) @medium
+    ☐ Add comfort-zone slider + feedback weighting for suggestion relevance tuning @medium
+  Projects:
+    ☐ Add "Convert task to project" flow that scaffolds subtasks and carries context @medium
+    ☐ Let accepted Explore suggestions start project creation flow directly @medium
+  Reliability & Platform:
+    ☐ Add AI usage guardrails (rate limits, debounce, and user-facing fallback states) @high
+    ☐ Run mobile-first optimization pass for core daily workflows @medium
+    ☐ Add configurable reminder notifications (phase 1: simple daily check-in) @low

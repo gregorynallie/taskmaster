@@ -1,0 +1,21 @@
+---
+description: Define idea-to-todo promotion workflow
+alwaysApply: true
+---
+
+# Idea Promotion Workflow
+
+- Capture new feature ideas in `IDEAS_BACKLOG.md` first when they are exploratory, high-level, or not implementation-ready.
+- Move items to `TODO` only when they are clear enough to execute (scope, intent, and expected outcome are understandable).
+- Keep `TODO` focused on actionable work; keep `IDEAS_BACKLOG.md` focused on discovery and prioritization.
+
+# Update Rules
+
+- If the user mentions a new concept without requesting implementation, add/update it in `IDEAS_BACKLOG.md` (and only mirror to `TODO` if explicitly requested or clearly execution-ready).
+- If a feature is implemented, update `TODO` status immediately and keep wording aligned with what shipped.
+- Avoid duplicate entries across sections/files unless there is a clear traceability reason.
+
+# Practical Guardrails
+
+- Prefer concise, de-duplicated entries grouped by area.
+- Preserve existing project conventions and core-first prioritization.

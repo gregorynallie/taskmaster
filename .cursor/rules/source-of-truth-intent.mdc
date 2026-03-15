@@ -1,0 +1,18 @@
+---
+description: Use concept/todo/backlog as intent source of truth
+alwaysApply: true
+---
+
+# Product Intent Source of Truth
+
+- Treat `CONCEPT.md`, `TODO`, and `IDEAS_BACKLOG.md` as the primary source of truth for product intention, priorities, and direction.
+- Refer to these files before proposing features, roadmaps, or implementation plans.
+- If instructions conflict, prioritize these files for product intent alignment and ask for clarification when needed.
+
+# Ongoing Backlog Hygiene
+
+- Keep `TODO` up to date whenever:
+  - a new feature is implemented, or
+  - the user introduces a new feature idea that should be tracked.
+- Add only net-new items (do not duplicate functionality already implemented).
+- Keep entries concise, grouped logically, and aligned with current project conventions.

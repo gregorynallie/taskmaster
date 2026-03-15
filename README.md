@@ -1,24 +1,37 @@
-<<<<<<< HEAD
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# TaskMaster
 
-# Run and deploy your AI Studio app
+AI-powered task manager with RPG gamification (quests, levels, rewards) and a minimal mode. Claude AI enriches tasks and suggests next steps.
 
-This contains everything you need to run your app locally.
+## Run locally
 
-View your app in AI Studio: https://ai.studio/apps/5449bff5-512f-430b-bb00-aded48006950
+**Prerequisites:** Node.js
 
-## Run Locally
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-**Prerequisites:**  Node.js
+2. **Set up environment**
+   - Copy `.env.example` to `.env.local`
+   - Add your keys: `ANTHROPIC_API_KEY`, `VITE_FIREBASE_API_KEY`
+   - Never commit `.env.local` (it’s gitignored)
 
+3. **Start the app**
+   ```bash
+   npm run dev
+   ```
+   Open http://localhost:3000 (or the port Vite prints).
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-=======
-# taskmaster
->>>>>>> bfbd658249a43119ea648794031a331e7ee1467f
+## Scripts
+
+| Command        | Description              |
+|----------------|--------------------------|
+| `npm run dev`  | Start dev server         |
+| `npm run build`| Production build         |
+| `npm run preview` | Preview production build |
+| `npm run typecheck` | TypeScript check (no emit) |
+
+## Repo and docs
+
+- **Git:** Commit often; use `git add .` → `git commit -m "..."` → `git push` to save versions and sync to GitHub.
+- **Developer guide:** See [CLAUDE.md](CLAUDE.md) for architecture, conventions, and AI service details.

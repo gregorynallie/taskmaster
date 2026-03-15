@@ -1,0 +1,14 @@
+---
+description: Remind user to commit/push after code changes
+alwaysApply: true
+---
+
+# Git workflow reminders
+
+After making code changes (whether the user requested them or we did a multi-step task):
+
+1. **Remind the user** that it's a good time to save a version: e.g. "Good point to commit: run `git add .` then `git commit -m \"Short description\"`, and `git push` if you want it on GitHub."
+2. **Suggest a concrete commit message** based on what changed (e.g. "Add overdue filter to Today view", "Fix quest progress calculation").
+3. **Offer to run the commands** if they want: e.g. "I can run the commit and push for you if you’d like."
+
+Keep the reminder brief and friendly. Don’t repeat it in the same conversation after they’ve already committed.

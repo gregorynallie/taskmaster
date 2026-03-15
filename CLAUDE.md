@@ -14,7 +14,7 @@ AI-powered task manager with RPG gamification. Two modes: **RPG** (leveling, que
 ```bash
 npm run dev   # http://localhost:3000
 ```
-API key lives in `.env.local` as `ANTHROPIC_API_KEY`. Vite injects it via `process.env.ANTHROPIC_API_KEY` (defined in `vite.config.ts`).
+API keys live in `.env.local` (gitignored): `ANTHROPIC_API_KEY`, `VITE_FIREBASE_API_KEY`. Never commit real keys. See `.env.example` for required vars.
 
 ## Key Architecture
 

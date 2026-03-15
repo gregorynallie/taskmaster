@@ -1,0 +1,67 @@
+name: Phone Note Capture
+
+on:
+  repository_dispatch:
+    types: [phone_note_capture]
+
+permissions:
+  contents: write
+
+jobs:
+  append-phone-note:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Append note to NOTES_FROM_PHONE.md
+        run: |
+          python - <<'PY'
+          import json
+          import datetime
+          from pathlib import Path
+
+          event_path = Path("${{ github.event_path }}")
+          data = json.loads(event_path.read_text(encoding="utf-8"))
+          payload = data.get("client_payload", {})
+
+          note = str(payload.get("note", "")).strip()
+          if not note:
+              raise SystemExit("No note provided in client_payload.note")
+
+          note_type = str(payload.get("type", "note")).strip() or "note"
+          source = str(payload.get("source", "siri")).strip() or "siri"
+          timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%SZ")
+
+          # Keep one-line entries for easier triage parsing.
+          note = " ".join(note.split())
+
+          target = Path("docs/notes/NOTES_FROM_PHONE.md")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          if not target.exists():
+              target.write_text(
+                  "# Notes From Phone\n\n"
+                  "Capture stream for Siri/iPhone ideas.\n\n"
+                  "Format (auto-appended by workflow):\n"
+                  "- [ ] `timestamp` | `source` | `type` | note text\n\n"
+                  "Processing rule:\n"
+                  "- `[ ]` means unprocessed.\n"
+                  "- `[x]` means processed and triaged into `CONCEPT.md`, `TODO`, or `IDEAS_BACKLOG.md`.\n",
+                  encoding="utf-8",
+              )
+
+          with target.open("a", encoding="utf-8") as f:
+              f.write(f"\n- [ ] `{timestamp}` | `{source}` | `{note_type}` | {note}\n")
+          PY
+
+      - name: Commit and push
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/notes/NOTES_FROM_PHONE.md
+          git commit -m "Capture phone note"
+          git push

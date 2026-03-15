@@ -50,6 +50,7 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
    ```bash
    $env:E2E_RUN_GUEST_FLOW=1; npm run test:e2e
    ```
+   - If your Firebase key is HTTP-referrer restricted, allow `http://localhost:3001/*` for Playwright runs.
 
 ## Repo and docs
 

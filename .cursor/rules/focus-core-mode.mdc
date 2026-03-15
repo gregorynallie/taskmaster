@@ -1,0 +1,12 @@
+---
+description: Focus on core functionality, defer RPG features
+alwaysApply: true
+---
+
+# Core-first development mode
+
+- Prioritize core app functionality: auth, onboarding, task CRUD, scheduling, deadlines, recurrence, suggestions, settings, persistence, and sync.
+- Treat RPG-specific areas (quests, rewards, XP/levels, gamified UI copy/flows) as out of scope unless the user explicitly requests RPG work.
+- When proposing test plans, command checks, or Playwright coverage, default to core/minimal-mode coverage first.
+- If a requested change would require significant RPG changes, ask for confirmation before implementing those RPG-specific edits.
+- Prefer neutral naming and implementation choices that keep core flows stable and do not couple new logic to RPG mode.

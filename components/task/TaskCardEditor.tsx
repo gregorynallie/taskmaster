@@ -153,13 +153,13 @@ export const TaskCardEditor: React.FC<TaskCardEditorProps> = ({ task, onSave, on
                             type="date"
                             value={editedState.scheduled_date || ''}
                             onChange={(e) => setEditedState(s => s ? {...s, scheduled_date: e.target.value} : null)}
-                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs"
+                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs text-text-primary [color-scheme:inherit]"
                         />
                         <input
                             type="time"
                             value={editedState.scheduled_time || ''}
                             onChange={(e) => setEditedState(s => s ? {...s, scheduled_time: e.target.value} : null)}
-                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs"
+                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs text-text-primary [color-scheme:inherit]"
                         />
                     </div>
                 </div>
@@ -171,13 +171,13 @@ export const TaskCardEditor: React.FC<TaskCardEditorProps> = ({ task, onSave, on
                             type="date"
                             value={editedState.deadline_date || ''}
                             onChange={(e) => setEditedState(s => s ? {...s, deadline_date: e.target.value} : null)}
-                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs"
+                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs text-text-primary [color-scheme:inherit]"
                         />
                         <input
                             type="time"
                             value={editedState.deadline_time || ''}
                             onChange={(e) => setEditedState(s => s ? {...s, deadline_time: e.target.value} : null)}
-                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs"
+                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs text-text-primary [color-scheme:inherit]"
                         />
                         <button type="button" onClick={() => setEditedState(s => s ? {...s, deadline_date: '', deadline_time: ''} : null)} className="text-xs px-2 py-1 rounded-themed hover:bg-secondary/50">Clear</button>
                     </div>
@@ -196,7 +196,7 @@ export const TaskCardEditor: React.FC<TaskCardEditorProps> = ({ task, onSave, on
                                     setEditedState(s => s ? { ...s, recurring: { frequency: freq as RecurrenceFrequency, interval: 1, daysOfWeek: [], dayOfMonth: 1 } } : null);
                                 }
                             }}
-                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1.5 text-xs w-full max-w-[10rem]"
+                            className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1.5 text-xs w-full max-w-[10rem] text-text-primary"
                         >
                             <option value="NONE">Does not repeat</option>
                             <option value="MINUTELY">Minutely</option>
@@ -216,7 +216,7 @@ export const TaskCardEditor: React.FC<TaskCardEditorProps> = ({ task, onSave, on
                                     min="1"
                                     value={editedState.recurring.interval || 1}
                                     onChange={(e) => setEditedState(s => s ? { ...s, recurring: { ...s.recurring!, interval: parseInt(e.target.value, 10) || 1 } } : null)}
-                                    className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs w-16"
+                                    className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs w-16 text-text-primary"
                                 />
                                 <span className="text-text-secondary">{getRecurrenceUnitText()}</span>
                             </div>
@@ -240,7 +240,7 @@ export const TaskCardEditor: React.FC<TaskCardEditorProps> = ({ task, onSave, on
                                         min="1" max="31"
                                         value={editedState.recurring.dayOfMonth || 1}
                                         onChange={(e) => setEditedState(s => s ? { ...s, recurring: { ...s.recurring!, dayOfMonth: parseInt(e.target.value, 10) || 1 } } : null)}
-                                        className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs w-16"
+                                        className="bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-1 text-xs w-16 text-text-primary"
                                     />
                                 </div>
                             )}

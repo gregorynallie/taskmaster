@@ -57,7 +57,7 @@ export const ScheduleEditorModal: React.FC<ScheduleEditorModalProps> = ({ task, 
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
-                            className="w-full bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-2"
+                            className="w-full bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-2 text-text-primary [color-scheme:inherit]"
                         />
                     </div>
                     <div>
@@ -67,7 +67,7 @@ export const ScheduleEditorModal: React.FC<ScheduleEditorModalProps> = ({ task, 
                             type="time"
                             value={time}
                             onChange={(e) => setTime(e.target.value)}
-                            className="w-full bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-2"
+                            className="w-full bg-bkg/80 border border-secondary focus:border-primary focus:ring-0 rounded-themed p-2 text-text-primary [color-scheme:inherit]"
                         />
                     </div>
                 </div>

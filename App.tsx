@@ -93,6 +93,9 @@ function App() {
         }
     });
 
+    // Match native date/time picker UI to theme (light vs dark)
+    document.documentElement.style.colorScheme = themeDef.isLight ? 'light' : 'dark';
+
     // Explicitly set the body font from the theme definition
     if (themeDef.font) {
       document.body.style.fontFamily = themeDef.font;

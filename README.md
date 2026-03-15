@@ -30,6 +30,26 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
 | `npm run build`| Production build         |
 | `npm run preview` | Preview production build |
 | `npm run typecheck` | TypeScript check (no emit) |
+| `npm run test:e2e` | Run Playwright smoke tests |
+| `npm run test:e2e:ui` | Open Playwright UI mode |
+| `npm run test:e2e:headed` | Run Playwright with visible browser |
+| `npm run test:e2e:report` | Open Playwright HTML report |
+
+## End-to-end testing (Playwright)
+
+1. Install Playwright browser binaries once:
+   ```bash
+   npx playwright install chromium
+   ```
+2. Run smoke tests:
+   ```bash
+   npm run test:e2e
+   ```
+3. Optional guest-flow test:
+   - Enable guest auth in Firebase, then run:
+   ```bash
+   $env:E2E_RUN_GUEST_FLOW=1; npm run test:e2e
+   ```
 
 ## Repo and docs
 

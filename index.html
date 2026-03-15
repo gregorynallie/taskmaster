@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task Master</title>
+    <meta name="description" content="Your AI-enhanced to-do list: add tasks with natural language, discover personalized suggestions, and get a plan tailored to your habits." />
+
+    <!-- Favicon and Social Sharing Images -->
+    <link rel="icon" href="./taskmaster_icon.png" type="image/x-icon" />
+    <link rel="shortcut icon" href="./taskmaster_icon.png" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="https://i.imgur.com/SWPhvTd.png" />
+    <meta property="og:title" content="Task Master" />
+    <meta property="og:description" content="Your AI-enhanced to-do list: add tasks with natural language, discover personalized suggestions, and get a plan tailored to your habits." />
+    <meta property="og:image" content="https://i.imgur.com/SWPhvTd.png" />
+    <meta property="og:type" content="website" />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bkg: #121212;
+        --surface: #1e1e1e;
+        --surface-modal-bkg: #1e1e1e;
+        --primary: #8A2BE2;
+        --primary-focus: #9932CC;
+        --secondary: #4A4A4A;
+        --text-primary: #E0E0E0;
+        --text-secondary: #B0B0B0;
+        --accent: #00BFFF;
+        --text-on-secondary-bkg: var(--text-primary);
+
+        /* Deep Theme Variables */
+        --font-family-header: 'Orbitron', sans-serif;
+        --font-family-body: 'Inter', sans-serif;
+        --border-radius: 0.5rem; /* 8px */
+        --card-border-width: 0px;
+        --card-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        --bkg-image: none;
+        --transition-duration: 300ms;
+        --header-text-shadow: none;
+
+        /* New Motion & Animation Variables */
+        --animation-timing-enter: ease-out;
+        --animation-transform-enter: translateY(10px) scale(0.98);
+      }
+      
+      body {
+        font-family: var(--font-family-body);
+        background: var(--bkg-image) var(--bkg);
+        color: var(--text-primary);
+      }
+      h1, h2, h3, h4, h5, h6 {
+        font-family: var(--font-family-header);
+        text-shadow: var(--header-text-shadow);
+      }
+
+      /* --- SKELETON LOADER (Default Sets) --- */
+      .skeleton-loader .skeleton-line { border-radius: var(--border-radius); }
+      .skeleton-standard .skeleton-line { background-color: var(--secondary); opacity: 0.5; animation: skeleton-pulse-standard 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+      @keyframes skeleton-pulse-standard { 50% { opacity: .2; } }
+      .skeleton-playful .skeleton-line { background-color: var(--secondary); transform-origin: center; animation: skeleton-pulse-playful 2s infinite ease-in-out; }
+      @keyframes skeleton-pulse-playful { 50% { transform: scale(0.98); opacity: 0.3; } }
+      .skeleton-glitch .skeleton-line { background-color: var(--text-primary); animation: skeleton-glitch-flicker 1.5s linear infinite; }
+      @keyframes skeleton-glitch-flicker { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; box-shadow: 0 0 8px var(--text-primary); } }
+      .skeleton-retro .skeleton-line { background-color: var(--text-primary); animation: skeleton-retro-blink 1s linear infinite; }
+      @keyframes skeleton-retro-blink { 0%, 100% { opacity: 0.8; } 50% { opacity: 0.2; } }
+      .skeleton-pop .skeleton-line { background: linear-gradient(90deg, var(--secondary), var(--primary), var(--secondary)); background-size: 200% 100%; animation: skeleton-pop-pan 1.5s linear infinite; }
+      @keyframes skeleton-pop-pan { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+      .skeleton-cinematic .skeleton-line { background-color: var(--secondary); opacity: 0.5; animation: skeleton-pulse-cinematic 3s ease-in-out infinite; }
+      @keyframes skeleton-pulse-cinematic { 50% { opacity: .15; } }
+      .skeleton-organic .skeleton-line { background: linear-gradient(90deg, var(--secondary), var(--accent), var(--secondary)); background-size: 200% 100%; animation: skeleton-organic-pan 2s ease-in-out infinite; }
+      @keyframes skeleton-organic-pan { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+      .skeleton-minimal .skeleton-line { background-color: var(--secondary); opacity: 0.3; animation: skeleton-pulse-standard 2s ease-in-out infinite; }
+      
+      /* --- PROGRESS BAR (Default Sets) --- */
+      .progress-bar-fill { height: 100%; background-color: var(--primary); border-radius: inherit; }
+      .progress-standard .progress-bar-fill { transition: width 0.5s ease-out; }
+      .progress-playful .progress-bar-fill { transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+      .progress-glitch .progress-bar-fill { transition: width 0.3s linear; animation: progress-glitch-anim 0.5s infinite; }
+      @keyframes progress-glitch-anim { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.5); box-shadow: 0 0 5px var(--primary); } }
+      .progress-retro .progress-bar-fill { transition: width 0.3s steps(10, end); background-image: repeating-linear-gradient(-45deg, transparent, transparent 5px, rgba(0,0,0,0.2) 5px, rgba(0,0,0,0.2) 10px); }
+      .progress-pop .progress-bar-fill { transition: width 0.4s ease-out; }
+      .progress-cinematic .progress-bar-fill { transition: width 1s ease-in-out; }
+      .progress-organic .progress-bar-fill { transition: width 0.8s ease-in-out; background: linear-gradient(90deg, var(--primary), var(--accent)); }
+      .progress-minimal .progress-bar-fill { transition: width 0.5s ease-in-out; }
+
+      /* --- BUTTON (Default Sets) --- */
+      .btn-primary { background-color: var(--primary); color: white; font-weight: bold; padding: 0.75rem 1.5rem; border-radius: var(--border-radius); }
+      .btn-standard:active { transform: scale(0.98); }
+      .btn-playful:active { transform: scale(0.95) rotate(-2deg); }
+      .btn-glitch:active { animation: btn-glitch-anim 0.2s linear; }
+      @keyframes btn-glitch-anim { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(-2px, 2px); filter: brightness(2); } }
+      .btn-retro:active { transform: translate(2px, 2px); box-shadow: 3px 3px 0px var(--secondary) !important; }
+      .btn-pop:active { transform: scale(0.96); filter: brightness(1.1); }
+      .btn-cinematic:active { transform: scale(0.99); filter: brightness(0.9); }
+      .btn-organic:active { transform: scale(0.97); }
+      .btn-minimal:active { transform: scale(0.99); }
+
+      /* --- MODAL (Default Sets) --- */
+      @keyframes modal-enter-standard { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+      @keyframes modal-enter-playful { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+      @keyframes modal-enter-glitch { 0% { opacity: 0; transform: skewX(-10deg); filter: brightness(3); } 100% { opacity: 1; transform: skewX(0); filter: brightness(1); } }
+      @keyframes modal-enter-retro { 0% { clip-path: circle(0% at 50% 50%); } 100% { clip-path: circle(75% at 50% 50%); } }
+      @keyframes modal-enter-pop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+      @keyframes modal-enter-cinematic { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes modal-enter-organic { from { opacity: 0; filter: blur(5px); } to { opacity: 1; filter: blur(0); } }
+      @keyframes modal-enter-minimal { from { opacity: 0; } to { opacity: 1; } }
+      
+      /* --- LEVEL UP (Default Sets) --- */
+      @keyframes levelup-text-standard { from { opacity: 0; transform: translateY(20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes levelup-text-playful { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes levelup-text-glitch { 0% { transform: scale(1); opacity: 0; filter: brightness(3); text-shadow: 0 0 20px #fff; } 100% { transform: scale(1); opacity: 1; filter: brightness(1); text-shadow: none; } }
+      @keyframes levelup-text-retro { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      @keyframes levelup-text-pop { 0% { transform: scale(3); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes levelup-text-cinematic { from { opacity: 0; letter-spacing: 0.5em; } to { opacity: 1; letter-spacing: normal; } }
+      @keyframes levelup-text-organic { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
+      @keyframes levelup-text-minimal { from { opacity: 0; } to { opacity: 1; } }
+      
+      /* --- Add Task Animation Sets --- */
+      /* Standard */
+      @keyframes standard-confirm-enter { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+      @keyframes standard-confirm-exit { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+      @keyframes standard-form-enter { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes standard-task-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      /* Glitch */
+      @keyframes glitch-confirm-enter { 0% { opacity: 0; transform: scale(0.9) skewX(-10deg); filter: brightness(3); } 50% { opacity: 0.8; transform: scale(1.05) skewX(10deg); } 100% { opacity: 1; transform: scale(1) skewX(0); filter: brightness(1); } }
+      @keyframes glitch-confirm-exit { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.5); filter: blur(10px); } }
+      @keyframes glitch-form-enter { from { opacity: 0; -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%); mask-image: linear-gradient(to bottom, transparent 0%, black 100%); } to { opacity: 1; -webkit-mask-image: linear-gradient(to bottom, transparent -100%, black 0%); mask-image: linear-gradient(to bottom, transparent -100%, black 0%); } }
+      @keyframes glitch-task-enter { from { opacity: 0; transform: translateY(20px); filter: brightness(2); } to { opacity: 1; transform: translateY(0); filter: brightness(1); } }
+      /* Playful */
+      @keyframes playful-confirm-enter { from { opacity: 0; transform: scale(0.5); } to { opacity: 1; transform: scale(1); } }
+      @keyframes playful-confirm-exit { 0% { opacity: 1; transform: scale(1) rotate(0); } 100% { opacity: 0; transform: scale(0.5) rotate(15deg); } }
+      @keyframes playful-form-enter { from { opacity: 0; transform: translateY(-50px) scale(0.8); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes playful-task-enter { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+      /* Retro */
+      @keyframes retro-confirm-enter { 0% { opacity: 0; filter: blur(5px); } 100% { opacity: 1; filter: blur(0); } }
+      @keyframes retro-confirm-exit { 0% { opacity: 1; -webkit-mask-image: linear-gradient(to bottom, black 0%, black 100%); } 100% { opacity: 0; -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%); } }
+      @keyframes retro-form-enter { 0% { transform: scale(0); opacity: 0; border-radius: 50%; } 50% { transform: scaleX(0) scaleY(0.05); opacity: 1; border-radius: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes retro-task-enter { 0% { opacity: 0; } 100% { opacity: 1; } }
+      /* Pop */
+      @keyframes pop-confirm-enter { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+      @keyframes pop-confirm-exit { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.8) translateY(20px); opacity: 0; } }
+      @keyframes pop-form-enter { from { transform: scale(0.9) translateY(-10px); opacity: 0; } to { transform: scale(1) translateY(0); opacity: 1; } }
+      @keyframes pop-task-enter { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+      /* Cinematic */
+      @keyframes cinematic-fade { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes cinematic-fade-out { from { opacity: 1; } to { opacity: 0; } }
+      /* Organic */
+      @keyframes organic-materialize { from { opacity: 0; filter: blur(5px); } to { opacity: 1; filter: blur(0); } }
+      @keyframes organic-dissolve { from { opacity: 1; filter: blur(0); } to { opacity: 0; filter: blur(5px); } }
+      /* Minimal */
+      @keyframes minimal-fade-fast { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes minimal-fade-out-fast { from { opacity: 1; } to { opacity: 0; } }
+
+      /* --- Task Complete Animation Sets --- */
+      @keyframes complete-task-standard { 0% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.05); background-color: hsla(120, 73%, 45%, 0.1); } 100% { transform: scale(0.9) translateY(20px); opacity: 0; } }
+      @keyframes complete-task-playful { 0% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(1.1) rotate(5deg); } 100% { transform: scale(0.5) rotate(-10deg); opacity: 0; } }
+      @keyframes complete-task-glitch { 0% { opacity: 1; transform: translate(0,0); } 20% { opacity: 0.8; transform: translate(-2px, 2px) skewX(5deg); filter: brightness(2); } 80% { opacity: 0.8; transform: scaleY(0); } 100% { opacity: 0; } }
+      @keyframes complete-task-retro { 0% { opacity: 1; box-shadow: 0 0 0 transparent; } 100% { opacity: 0; transform: scale(1.5); box-shadow: -10px -5px 0 -2px var(--secondary), 10px 5px 0 -2px var(--accent), -5px 10px 0 -2px var(--secondary), 5px -10px 0 -2px var(--accent); } }
+      @keyframes complete-task-pop { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.1); } }
+      @keyframes complete-task-cinematic { from { opacity: 1; } to { opacity: 0; filter: blur(2px); } }
+      @keyframes complete-task-organic { from { opacity: 1; filter: blur(0); } to { opacity: 0; filter: blur(5px); transform: translateY(-10px); } }
+      @keyframes complete-task-minimal { from { opacity: 1; } to { opacity: 0; } }
+
+      /* --- Dismiss Task Animation Sets --- */
+      @keyframes dismiss-task-standard { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); } }
+      @keyframes dismiss-task-playful { from { opacity: 1; transform: scale(1) rotate(0); } to { opacity: 0; transform: scale(0.5) rotate(-15deg); } }
+      @keyframes dismiss-task-glitch { 0% { opacity: 1; } 100% { opacity: 0; transform: translate(-10px, 5px) skewX(-15deg); filter: brightness(2); } }
+      @keyframes dismiss-task-retro { from { transform: scaleY(1); } to { transform: scaleY(0); } }
+      @keyframes dismiss-task-pop { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+      @keyframes dismiss-task-cinematic { from { opacity: 1; } to { opacity: 0; } }
+      @keyframes dismiss-task-organic { from { opacity: 1; filter: blur(0); } to { opacity: 0; filter: blur(10px); } }
+      @keyframes dismiss-task-minimal { from { opacity: 1; } to { opacity: 0; } }
+
+      /* --- Accept Suggestion Animation Sets --- */
+      @keyframes accept-suggestion-standard { 0% { transform: scale(1); opacity: 1; } 30% { transform: scale(1.05); border-color: var(--accent); box-shadow: 0 0 10px var(--accent); } 100% { transform: scale(0.9); opacity: 0; } }
+      @keyframes accept-suggestion-playful { 0% { transform: scale(1) rotate(0); opacity: 1; } 50% { transform: scale(1.1) rotate(3deg); } 100% { transform: scale(0); opacity: 0; } }
+      @keyframes accept-suggestion-glitch { 0% { opacity: 1; } 100% { opacity: 0; clip-path: inset(50% 0 50% 0); transform: scale(0.8); } }
+      @keyframes accept-suggestion-retro { from { -webkit-mask-image: linear-gradient(to right, black 0%, black 100%); } to { -webkit-mask-image: linear-gradient(to right, black 0%, transparent 100%); } }
+      @keyframes accept-suggestion-pop { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.1); } }
+      @keyframes accept-suggestion-cinematic { from { opacity: 1; } to { opacity: 0; transform: scale(0.98); } }
+      @keyframes accept-suggestion-organic { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.95); filter: blur(5px); } }
+      @keyframes accept-suggestion-minimal { from { opacity: 1; } to { opacity: 0; } }
+
+      /* --- View Transition Animation Sets --- */
+      @keyframes view-exit-standard { from { opacity: 1; } to { opacity: 0; } }
+      @keyframes view-enter-standard { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes view-exit-playful { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+      @keyframes view-enter-playful { from { opacity: 0; transform: scale(1.1); } to { opacity: 1; transform: scale(1); } }
+      @keyframes view-exit-glitch { 0% { opacity: 1; } 100% { opacity: 0; filter: brightness(3); } }
+      @keyframes view-enter-glitch { 0% { opacity: 0; transform: skewX(10deg); } 100% { opacity: 1; transform: skewX(0); } }
+      @keyframes view-exit-retro { from { clip-path: circle(75% at 50% 50%); } to { clip-path: circle(0% at 50% 50%); } }
+      @keyframes view-enter-retro { from { clip-path: circle(0% at 50% 50%); } to { clip-path: circle(75% at 50% 50%); } }
+      @keyframes view-exit-pop { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.98); } }
+      @keyframes view-enter-pop { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+      @keyframes view-exit-cinematic { from { opacity: 1; } to { opacity: 0; } }
+      @keyframes view-enter-cinematic { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes view-exit-organic { from { opacity: 1; filter: blur(0); } to { opacity: 0; filter: blur(10px); } }
+      @keyframes view-enter-organic { from { opacity: 0; filter: blur(10px); } to { opacity: 1; filter: blur(0); } }
+      @keyframes view-exit-minimal { from { opacity: 1; } to { opacity: 0; } }
+      @keyframes view-enter-minimal { from { opacity: 0; } to { opacity: 1; } }
+      
+      /* Aura effect for buttons */
+      @keyframes subtle-aura-glow {
+        0% { box-shadow: 0 0 6px 0px var(--primary), 0 0 10px 0px var(--accent); }
+        50% { box-shadow: 0 0 10px 2px var(--secondary), 0 0 16px 2px var(--primary); }
+        100% { box-shadow: 0 0 6px 0px var(--primary), 0 0 10px 0px var(--accent); }
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'bkg': 'var(--bkg)', 'surface': 'var(--surface)', 'surface-modal-bkg': 'var(--surface-modal-bkg)',
+              'primary': 'var(--primary)', 'primary-focus': 'var(--primary-focus)', 'secondary': 'var(--secondary)',
+              'text-primary': 'var(--text-primary)', 'text-secondary': 'var(--text-secondary)', 'accent': 'var(--accent)',
+              'text-on-secondary-bkg': 'var(--text-on-secondary-bkg)',
+            },
+            fontFamily: { body: ['var(--font-family-body)', 'sans-serif'], header: ['var(--font-family-header)', 'sans-serif'], },
+            borderRadius: { 'themed': 'var(--border-radius)', },
+            boxShadow: { 'themed': 'var(--card-shadow)', },
+            transitionTimingFunction: { 'themed': 'var(--animation-timing-enter)', },
+            transitionDuration: { 'themed': 'var(--transition-duration)', },
+            animation: {
+              /* Task Complete Animations */
+              'complete-task-standard': 'complete-task-standard 0.5s ease-in-out forwards',
+              'complete-task-playful': 'complete-task-playful 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards',
+              'complete-task-glitch': 'complete-task-glitch 0.4s linear forwards',
+              'complete-task-retro': 'complete-task-retro 0.3s ease-out forwards',
+              'complete-task-pop': 'complete-task-pop 0.3s ease-in forwards',
+              'complete-task-cinematic': 'complete-task-cinematic 0.6s ease-in-out forwards',
+              'complete-task-organic': 'complete-task-organic 0.5s ease-out forwards',
+              'complete-task-minimal': 'complete-task-minimal 0.3s ease-out forwards',
+
+              /* Add Task Animations */
+              'standard-confirm-enter': 'standard-confirm-enter 0.3s var(--animation-timing-enter) forwards', 'standard-confirm-exit': 'standard-confirm-exit 0.5s ease-out forwards', 'standard-form-enter': 'standard-form-enter 0.5s var(--animation-timing-enter) forwards', 'standard-task-enter': 'standard-task-enter 0.5s var(--animation-timing-enter) forwards',
+              'glitch-confirm-enter': 'glitch-confirm-enter 0.4s ease-out forwards', 'glitch-confirm-exit': 'glitch-confirm-exit 0.4s ease-in forwards', 'glitch-form-enter': 'glitch-form-enter 0.5s ease-out forwards', 'glitch-task-enter': 'glitch-task-enter 0.5s ease-out forwards',
+              'playful-confirm-enter': 'playful-confirm-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'playful-confirm-exit': 'playful-confirm-exit 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards', 'playful-form-enter': 'playful-form-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'playful-task-enter': 'playful-task-enter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+              'retro-confirm-enter': 'retro-confirm-enter 0.3s linear forwards', 'retro-confirm-exit': 'retro-confirm-exit 0.3s linear forwards', 'retro-form-enter': 'retro-form-enter 0.5s ease-out forwards', 'retro-task-enter': 'retro-task-enter 0.3s linear forwards',
+              'pop-confirm-enter': 'pop-confirm-enter 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'pop-confirm-exit': 'pop-confirm-exit 0.3s ease-in forwards', 'pop-form-enter': 'pop-form-enter 0.4s ease-out forwards', 'pop-task-enter': 'pop-task-enter 0.4s ease-out forwards',
+              'cinematic-confirm-enter': 'cinematic-fade 0.8s ease-in-out forwards', 'cinematic-confirm-exit': 'cinematic-fade-out 0.8s ease-in-out forwards', 'cinematic-form-enter': 'cinematic-fade 0.8s ease-in-out forwards', 'cinematic-task-enter': 'cinematic-fade 0.8s ease-in-out forwards',
+              'organic-confirm-enter': 'organic-materialize 0.6s ease-out forwards', 'organic-confirm-exit': 'organic-dissolve 0.6s ease-in forwards', 'organic-form-enter': 'organic-materialize 0.6s ease-out forwards', 'organic-task-enter': 'organic-materialize 0.6s ease-out forwards',
+              'minimal-confirm-enter': 'minimal-fade-fast 0.2s ease-out forwards', 'minimal-confirm-exit': 'minimal-fade-out-fast 0.3s ease-in forwards', 'minimal-form-enter': 'minimal-fade-fast 0.3s ease-out forwards', 'minimal-task-enter': 'minimal-fade-fast 0.3s ease-out forwards',
+              
+              /* Dismiss Task Animations */
+              'dismiss-task-standard': 'dismiss-task-standard 0.4s ease-out forwards',
+              'dismiss-task-playful': 'dismiss-task-playful 0.4s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards',
+              'dismiss-task-glitch': 'dismiss-task-glitch 0.3s linear forwards',
+              'dismiss-task-retro': 'dismiss-task-retro 0.3s ease-in-out forwards',
+              'dismiss-task-pop': 'dismiss-task-pop 0.3s ease-in forwards',
+              'dismiss-task-cinematic': 'dismiss-task-cinematic 0.8s ease-in-out forwards',
+              'dismiss-task-organic': 'dismiss-task-organic 0.6s ease-out forwards',
+              'dismiss-task-minimal': 'dismiss-task-minimal 0.2s ease-out forwards',
+              
+              /* Accept Suggestion Animations */
+              'accept-suggestion-standard': 'accept-suggestion-standard 0.5s ease-in-out forwards',
+              'accept-suggestion-playful': 'accept-suggestion-playful 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards',
+              'accept-suggestion-glitch': 'accept-suggestion-glitch 0.4s linear forwards',
+              'accept-suggestion-retro': 'accept-suggestion-retro 0.4s ease-in-out forwards',
+              'accept-suggestion-pop': 'accept-suggestion-pop 0.3s ease-out forwards',
+              'accept-suggestion-cinematic': 'accept-suggestion-cinematic 0.8s ease-in-out forwards',
+              'accept-suggestion-organic': 'accept-suggestion-organic 0.6s ease-out forwards',
+              'accept-suggestion-minimal': 'accept-suggestion-minimal 0.3s ease-out forwards',
+
+              /* View Transition Animations */
+              'view-enter-standard': 'view-enter-standard 0.4s ease-out forwards', 'view-exit-standard': 'view-exit-standard 0.4s ease-in forwards',
+              'view-enter-playful': 'view-enter-playful 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'view-exit-playful': 'view-exit-playful 0.4s ease-in forwards',
+              'view-enter-glitch': 'view-enter-glitch 0.5s linear forwards', 'view-exit-glitch': 'view-exit-glitch 0.4s linear forwards',
+              'view-enter-retro': 'view-enter-retro 0.5s ease-in-out forwards', 'view-exit-retro': 'view-exit-retro 0.4s ease-in-out forwards',
+              'view-enter-pop': 'view-enter-pop 0.3s ease-out forwards', 'view-exit-pop': 'view-exit-pop 0.3s ease-in forwards',
+              'view-enter-cinematic': 'view-enter-cinematic 1s ease-in-out forwards', 'view-exit-cinematic': 'view-exit-cinematic 0.8s ease-in-out forwards',
+              'view-enter-organic': 'view-enter-organic 0.8s ease-out forwards', 'view-exit-organic': 'view-exit-organic 0.6s ease-in forwards',
+              'view-enter-minimal': 'view-enter-minimal 0.2s ease-out forwards', 'view-exit-minimal': 'view-exit-minimal 0.2s ease-in forwards',
+
+              /* Modal Animations */
+              'modal-enter-standard': 'modal-enter-standard 0.3s ease-out forwards', 'modal-enter-playful': 'modal-enter-playful 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'modal-enter-glitch': 'modal-enter-glitch 0.4s ease-out forwards', 'modal-enter-retro': 'modal-enter-retro 0.3s ease-in-out forwards', 'modal-enter-pop': 'modal-enter-pop 0.3s ease-out forwards', 'modal-enter-cinematic': 'modal-enter-cinematic 0.5s ease-in-out forwards', 'modal-enter-organic': 'modal-enter-organic 0.5s ease-out forwards', 'modal-enter-minimal': 'modal-enter-minimal 0.3s ease-out forwards',
+              
+              /* Level Up Animations */
+              'levelup-text-standard': 'levelup-text-standard 0.8s ease-out forwards', 'levelup-text-playful': 'levelup-text-playful 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards', 'levelup-text-glitch': 'levelup-text-glitch 0.5s linear forwards', 'levelup-text-retro': 'levelup-text-retro 1s steps(2, end) infinite', 'levelup-text-pop': 'levelup-text-pop 0.5s ease-out forwards', 'levelup-text-cinematic': 'levelup-text-cinematic 1.5s ease-out forwards', 'levelup-text-organic': 'levelup-text-organic 1.2s ease-out forwards', 'levelup-text-minimal': 'levelup-text-minimal 1s ease-out forwards',
+              'btn-aura-glow': 'subtle-aura-glow 4s ease-in-out infinite',
+            },
+          },
+        },
+      }
+    </script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

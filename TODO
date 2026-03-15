@@ -1,9 +1,10 @@
 TaskMaster Backlog:
   Input & AI:
     ☐ Add command-style task input (create/reschedule/complete/query) with clear confirmation before apply @high
+    ☐ Add prompt quality/relevance tuning loop (track accept/edit/dismiss signals and improve suggestion quality over time) @high
     ☐ Add bulk completion from natural-language recap ("I did X, Y, Z today") with preview + confirm @high
     ☐ Add disambiguation prompts when command target is unclear (multiple matching tasks) @high
-    ☐ Add "Plan my day" prompt mode that creates editable task drafts before save @high
+    ☐ Expand "Plan my day" into a PLAN hub (day/week/month/year) with wizard + editable draft before save @high
   Task List Behavior:
     ☐ Add smart auto-reposition for recurring tasks on completion (with smooth animation) @high
     ☐ Add pin-to-top tasks section that overrides group/sort/filter ordering @high
@@ -11,11 +12,21 @@ TaskMaster Backlog:
     ☐ Add suggestion type labels and filters (task/recurring/project/plan) @medium
     ☐ Add Explore guidance controls (difficulty, duration, category, free-form direction) @medium
     ☐ Add comfort-zone slider + feedback weighting for suggestion relevance tuning @medium
+    ☐ Add "guidance everywhere, never pushy" pass for major suggestion entry points @medium
   Projects:
     ☐ Add "Convert task to project" flow that scaffolds subtasks and carries context @medium
     ☐ Let accepted Explore suggestions start project creation flow directly @medium
+    ☐ Add goal-to-milestone decomposition flow (big goals -> small actionable steps) @medium
+    ☐ Decide whether Projects becomes PLAN hub (rename + expand) or PLAN lives alongside Projects @medium
+  Onboarding:
+    ☐ Add "I don't know, help me with this" self-discovery branch with guided prompts @medium
+  Core Experience:
+    ☐ Add 30-60 second daily check-in flow (review + tomorrow plan) @medium
+    ☐ Add reward-style personalization controls without changing core task flow @low
+    ☐ Audit and enforce task-manager standalone quality independent of gamified layer @medium
   Reliability & Platform:
     ☐ Add AI usage guardrails (rate limits, debounce, and user-facing fallback states) @high
+    ☐ Ensure AI-off/manual-first parity across core flows (no dead ends) @high
     ☐ Run mobile-first optimization pass for core daily workflows @medium
     ☐ Add configurable reminder notifications (phase 1: simple daily check-in) @low
 

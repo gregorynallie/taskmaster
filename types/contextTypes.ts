@@ -178,4 +178,4 @@ export type ViewOptionsContextType = {
 };
 
 // The old monolithic type, kept for reference during transition if needed
-export type LifeQuestContextType = SettingsContextType & UserProfileContextType & GamificationContextType & TasksContextType;
+export type TaskMasterContextType = SettingsContextType & UserProfileContextType & GamificationContextType & TasksContextType;

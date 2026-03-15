@@ -19,7 +19,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     {
         id: 'ach_level_5',
         name: "Level 5 Reached",
-        description: "Achieve level 5 on your life quest.",
+        description: "Achieve level 5 in TaskMaster.",
         rewardId: 'reward_001',
         check: (stats: UserStats) => stats.level >= 5,
     },

@@ -9,10 +9,10 @@ const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatc
         try {
             const storedValue = localStorage.getItem(key);
             // If the stored value is null or the literal string "undefined", use the default.
-            if (storedValue === null || storedValue === 'undefined') {
-                return defaultValue;
+            if (storedValue !== null && storedValue !== 'undefined') {
+                return JSON.parse(storedValue);
             }
-            return JSON.parse(storedValue);
+            return defaultValue;
         } catch (error) {
             console.warn(`Error reading localStorage key "${key}":`, error);
             return defaultValue;
@@ -47,16 +47,16 @@ const defaultInitialViewSettings: ViewSettings = {
 };
 
 export const useSettingsManager = () => {
-    const [mode, setMode] = usePersistentState<Mode>('lifequest_mode', 'minimal');
-    const [theme, setTheme] = usePersistentState<Theme>('lifequest_theme', 'warm-ember');
-    const [hasOnboarded, setHasOnboarded] = usePersistentState<boolean>('lifequest_hasOnboarded', false);
-    const [currentView, _setCurrentView] = usePersistentState<View>('lifequest_currentView', 'today');
-    const [previousView, setPreviousView] = usePersistentState<View>('lifequest_previousView', 'today');
-    const [soundEffectsEnabled, setSoundEffectsEnabled] = usePersistentState<boolean>('lifequest_soundEffectsEnabled', true);
-    const [defaultViewSettings, setDefaultViewSettings] = usePersistentState<ViewSettings | undefined>('lifequest_defaultViewSettings', defaultInitialViewSettings);
-    const [showSpoofedTasks, setShowSpoofedTasks] = usePersistentState<boolean>('lifequest_showSpoofedTasks', true);
-    const [favoriteThemes, setFavoriteThemes] = usePersistentState<string[]>('lifequest_favoriteThemes', featuredThemeIds);
-    const [shuffleThemesOnLoad, setShuffleThemesOnLoad] = usePersistentState<'off' | 'all' | 'favorites'>('lifequest_shuffleThemesOnLoad', 'off');
+    const [mode, setMode] = usePersistentState<Mode>('taskmaster_mode', 'minimal');
+    const [theme, setTheme] = usePersistentState<Theme>('taskmaster_theme', 'warm-ember');
+    const [hasOnboarded, setHasOnboarded] = usePersistentState<boolean>('taskmaster_hasOnboarded', false);
+    const [currentView, _setCurrentView] = usePersistentState<View>('taskmaster_currentView', 'today');
+    const [previousView, setPreviousView] = usePersistentState<View>('taskmaster_previousView', 'today');
+    const [soundEffectsEnabled, setSoundEffectsEnabled] = usePersistentState<boolean>('taskmaster_soundEffectsEnabled', true);
+    const [defaultViewSettings, setDefaultViewSettings] = usePersistentState<ViewSettings | undefined>('taskmaster_defaultViewSettings', defaultInitialViewSettings);
+    const [showSpoofedTasks, setShowSpoofedTasks] = usePersistentState<boolean>('taskmaster_showSpoofedTasks', true);
+    const [favoriteThemes, setFavoriteThemes] = usePersistentState<string[]>('taskmaster_favoriteThemes', featuredThemeIds);
+    const [shuffleThemesOnLoad, setShuffleThemesOnLoad] = usePersistentState<'off' | 'all' | 'favorites'>('taskmaster_shuffleThemesOnLoad', 'off');
 
     const setCurrentView = (newView: View) => {
         if (currentView !== 'settings' && newView === 'settings') {

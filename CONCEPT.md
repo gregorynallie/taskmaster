@@ -17,6 +17,16 @@ TaskMaster helps users turn thoughts into action through fast task capture, clea
 4. **Balance-aware guidance**: suggestions should help neglected life areas (productivity, fun, relaxation, social, health).
 5. **Core-first execution**: keep auth, onboarding, task CRUD, scheduling, recurrence, suggestions, sync, and settings stable before broader expansion.
 
+## Critical Requirements (From Source Prompts)
+- **Tool + game independence**: task manager must be excellent on its own; gamified layer must add motivation without becoming required.
+- **Multi-modal capture**: support text-first now, with voice recap and photo-assisted logging as planned expansion paths.
+- **Daily check-in loop (30-60 seconds)**: lightweight review of what was done, what changed, and what to do next.
+- **Goal decomposition**: convert larger goals into small actionable steps and connect daily execution to milestones.
+- **Adaptive challenge control**: users choose how much they are pushed (comfort-zone/intensity controls).
+- **Reward personalization**: users should be able to prefer different reward styles while preserving the same core task flow.
+- **Self-discovery onboarding**: include guided prompts and an "I don't know, help me with this" branch.
+- **Guidance everywhere, never pushy**: suggestions should be useful across major flows, with supportive tone and easy dismiss/shuffle feedback.
+
 ## Existing Foundation (Do Not Re-add As New Features)
 The app already includes these major capabilities:
 - Auth + Firestore-backed persistence/sync.
@@ -50,6 +60,7 @@ Use this section as a guardrail when writing TODO items so duplicates are not ad
   - AI on/off capability.
   - Adjustable suggestion frequency/intensity.
   - Transparent use of user feedback (`too easy`, `too hard`, `not for me`, etc.).
+  - Manual-first fallback path that remains fully usable without AI.
 
 ## Data/Platform Constraints
 - Firestore remains canonical source for user/task/quest data.

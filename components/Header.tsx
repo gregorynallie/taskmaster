@@ -71,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
     const { mode, theme, previousView } = useSettings();
     const { xp, level } = userStats;
 
-    const themeName = THEMES[theme]?.name || 'Life Quest';
+    const themeName = THEMES[theme]?.name || 'TaskMaster';
     const progressBarAnimationClass = useMemo(() => {
         const animationVariant = getAnimationVariant(theme, 'progressBar');
         return `progress-${(animationVariant as any).type}`;

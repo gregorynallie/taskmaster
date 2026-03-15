@@ -5,7 +5,11 @@ alwaysApply: true
 
 # Phone Notes Auto-Triage
 
-- At the start of each user request, check `docs/notes/NOTES_FROM_PHONE.md` for unprocessed entries (`- [ ]`).
+- At the start of each user request, sync/check remote first:
+  - run `git fetch origin` (or equivalent),
+  - check `origin/main:docs/notes/NOTES_FROM_PHONE.md` for unprocessed entries (`- [ ]`),
+  - then reconcile with local file before triaging.
+- Do not assume local `docs/notes/NOTES_FROM_PHONE.md` is current.
 - If unprocessed entries exist, triage each note into the best destination:
   - `CONCEPT.md` for durable product principles/direction.
   - `TODO` for execution-ready work.

@@ -12,8 +12,7 @@ This setup lets Siri append notes to `docs/notes/NOTES_FROM_PHONE.md` automatica
 Create a Shortcut named `TaskMaster Capture` with:
 
 1. `Dictate Text` (or `Ask for Input`)
-2. `Choose from Menu` with options: `idea`, `todo`, `concept`, `note`
-3. `Get Contents of URL`
+2. `Get Contents of URL`
    - URL: `https://api.github.com/repos/gregorynallie/taskmaster/dispatches`
    - Method: `POST`
    - Headers:
@@ -26,12 +25,12 @@ Create a Shortcut named `TaskMaster Capture` with:
   "event_type": "phone_note_capture",
   "client_payload": {
     "note": "<DICTATED_TEXT>",
-    "type": "<MENU_SELECTION>",
+    "type": "brain_dump",
     "source": "iphone-siri"
   }
 }
 ```
-4. Optional: `Show Notification` -> "Saved to TaskMaster phone notes"
+3. Optional: `Show Notification` -> "Saved to TaskMaster phone notes"
 
 Then invoke by saying: "Hey Siri, TaskMaster Capture."
 
@@ -41,4 +40,4 @@ Then invoke by saying: "Hey Siri, TaskMaster Capture."
   - `CONCEPT.md`
   - `TODO`
   - `IDEAS_BACKLOG.md`
-- After triage, notes are marked processed.
+- After triage, notes are marked processed and you get a short summary of where each note went.

@@ -33,7 +33,9 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
 | `npm run test:e2e` | Run Playwright smoke tests |
 | `npm run test:e2e:ui` | Open Playwright UI mode |
 | `npm run test:e2e:headed` | Run Playwright with visible browser |
+| `npm run test:e2e:demo` | Run single guest demo flow (headed) |
 | `npm run test:e2e:report` | Open Playwright HTML report |
+| `npm run test:e2e:auth` | Record Google auth session for Playwright |
 
 ## End-to-end testing (Playwright)
 
@@ -45,12 +47,34 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
    ```bash
    npm run test:e2e
    ```
-3. Optional guest-flow test:
-   - Enable guest auth in Firebase, then run:
+3. (Optional) Reuse Google login in Playwright:
+   - Run once and complete Google sign-in in the opened browser:
+   ```bash
+   npm run test:e2e:auth
+   ```
+   - Close the codegen window after sign-in to save auth state.
+4. Optional auth-dependent flow tests:
+   - Enable auth-dependent flow checks, then run:
    ```bash
    $env:E2E_RUN_GUEST_FLOW=1; npm run test:e2e
    ```
-   - If your Firebase key is HTTP-referrer restricted, allow `http://localhost:3001/*` for Playwright runs.
+   - Enable the longer onboarding/task lifecycle flow only when needed:
+   ```bash
+   $env:E2E_RUN_GUEST_FLOW=1; $env:E2E_RUN_CORE_FLOW=1; npm run test:e2e
+   ```
+   - If your Firebase key is HTTP-referrer restricted, allow `http://localhost:3000/*` for Playwright runs.
+   - To slow actions down for easier animation review:
+   ```bash
+   $env:E2E_STEP_DELAY_MS=1200; $env:E2E_RUN_GUEST_FLOW=1; npm run test:e2e:headed
+   ```
+   - To run one smooth guest-only demo flow end-to-end:
+   ```bash
+   $env:E2E_STEP_DELAY_MS=1200; npm run test:e2e:demo
+   ```
+   - To slow major UI transitions even more for animation review:
+   ```bash
+   $env:E2E_STEP_DELAY_MS=1400; $env:E2E_MAJOR_STEP_DELAY_MS=3200; npm run test:e2e:demo
+   ```
 
 ## Repo and docs
 

@@ -1,14 +1,23 @@
 import { defineConfig, devices } from '@playwright/test';
+import fs from 'fs';
+
+const storageStatePath = 'playwright/.auth/user.json';
+const hasStorageState = fs.existsSync(storageStatePath);
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  timeout: 45000,
+  expect: {
+    timeout: 10000,
+  },
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 1 : 0,
+  workers: 1,
   reporter: [['html'], ['list']],
   use: {
-    baseURL: 'http://localhost:3001',
+    baseURL: 'http://localhost:3000',
+    storageState: hasStorageState ? storageStatePath : undefined,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -20,9 +29,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --host localhost --port 3001',
-    url: 'http://localhost:3001',
+    command: 'npm run dev -- --host localhost --port 3000',
+    url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120000,
+    timeout: 60000,
   },
 });

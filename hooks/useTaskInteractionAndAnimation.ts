@@ -13,6 +13,8 @@ interface UseTaskInteractionAndAnimationProps {
     isSuggestionsLoading: boolean;
     activeAnimations: Map<string, any>;
     groupBy: GroupByType;
+    completingTaskId: string | null;
+    dismissingTaskId: string | null;
 }
 
 export const useTaskInteractionAndAnimation = ({
@@ -24,6 +26,8 @@ export const useTaskInteractionAndAnimation = ({
     isSuggestionsLoading,
     activeAnimations,
     groupBy,
+    completingTaskId,
+    dismissingTaskId,
 }: UseTaskInteractionAndAnimationProps) => {
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const [liveOrderedTasks, setLiveOrderedTasks] = useState<Task[] | null>(null);
@@ -40,6 +44,16 @@ export const useTaskInteractionAndAnimation = ({
     const shuffleTimeoutRef = useRef<number | null>(null);
     const [isListShuffling, setIsListShuffling] = useState(false);
     const dropTargetId = useRef<string | null>(null);
+    const completingTaskIdRef = useRef<string | null>(completingTaskId);
+    const dismissingTaskIdRef = useRef<string | null>(dismissingTaskId);
+
+    useEffect(() => {
+        completingTaskIdRef.current = completingTaskId;
+    }, [completingTaskId]);
+
+    useEffect(() => {
+        dismissingTaskIdRef.current = dismissingTaskId;
+    }, [dismissingTaskId]);
 
     const toggleSelectMode = () => { setIsSelectMode(prev => !prev); setSelectedTaskIds(new Set()); };
     const toggleTaskSelection = (taskId: string) => {
@@ -163,10 +177,16 @@ export const useTaskInteractionAndAnimation = ({
         const suggestionsJustLoaded = prevIsSuggestionsLoading.current && !isSuggestionsLoading;
         prevIsSuggestionsLoading.current = isSuggestionsLoading;
         if (isInitialMount.current) { if (newBoxes.size > 0) { boundingBoxes.current = newBoxes; isInitialMount.current = false; } return; }
-        if (suggestionsJustLoaded || draggedId || isDropping.current || activeAnimations.size > 0) { boundingBoxes.current = newBoxes; if (isDropping.current) isDropping.current = false; return; }
+        if (suggestionsJustLoaded || draggedId || isDropping.current || activeAnimations.size > 0) {
+            boundingBoxes.current = newBoxes;
+            if (isDropping.current) isDropping.current = false;
+            return;
+        }
         let isAnimating = false;
         taskNodes.forEach(node => {
             const taskId = node.dataset.taskId; if (!taskId) return;
+            // Let the active card's own completion/dismiss animation run without extra FLIP transforms.
+            if (taskId === completingTaskIdRef.current || taskId === dismissingTaskIdRef.current) return;
             const prevBox = boundingBoxes.current.get(taskId); const newBox = newBoxes.get(taskId);
             if (prevBox && newBox) {
                 const deltaY = prevBox.top - newBox.top; const deltaX = prevBox.left - newBox.left;

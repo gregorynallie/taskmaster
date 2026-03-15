@@ -143,6 +143,24 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         };
     }, [user, settings.setHasOnboarded]);
 
+    // Keep transitional IDs active until Firestore snapshot reflects the state change.
+    // This avoids a brief visual rollback that can cause completion/dismiss jitter.
+    useEffect(() => {
+        if (!completingTaskId) return;
+        const task = tasks.find(t => t.id === completingTaskId);
+        if (!task || !!task.completed_at || !!task.dismissed_at) {
+            setCompletingTaskId(null);
+        }
+    }, [tasks, completingTaskId]);
+
+    useEffect(() => {
+        if (!dismissingTaskId) return;
+        const task = tasks.find(t => t.id === dismissingTaskId);
+        if (!task || !!task.dismissed_at || !!task.completed_at) {
+            setDismissingTaskId(null);
+        }
+    }, [tasks, dismissingTaskId]);
+
     // --- Animation helpers ---
 
     const clearAnimation = useCallback((taskId: string) => {
@@ -248,13 +266,11 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
 
         await batch.commit();
         gamificationActions.awardXpForTaskCompletion(completedInstanceForStats, tasks, quests);
-        setCompletingTaskId(null);
     }, [user, tasks, quests, gamificationActions]);
 
     const dismissTask = useCallback(async (taskId: string) => {
         if (!user) return;
         await updateTask(taskId, { dismissed_at: new Date() });
-        setDismissingTaskId(null);
     }, [user, updateTask]);
 
     const reorderTasks = useCallback(async (orderedTasks: Task[]) => {

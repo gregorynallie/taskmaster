@@ -101,6 +101,8 @@ export const TodayView: React.FC<TodayViewProps> = ({ isFirstLoadAfterOnboarding
         isSuggestionsLoading,
         activeAnimations,
         groupBy,
+        completingTaskId,
+        dismissingTaskId,
     });
 
     useEffect(() => {

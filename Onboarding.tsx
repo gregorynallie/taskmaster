@@ -146,7 +146,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             <p className="text-sm text-text-secondary">A clean, professional interface.</p>
                         </button>
                         <button onClick={() => setSelectedMode('rpg')} className={`flex-1 p-4 rounded-themed border-2 transition-all ${selectedMode === 'rpg' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}>
-                            <h4 className="font-bold text-text-primary font-header">RPG Mode</h4>
+                            <h4 className="font-bold text-text-primary font-header">Gamified Mode</h4>
                             <p className="text-sm text-text-secondary">A gamified, fantasy-themed quest log.</p>
                         </button>
                     </div>

@@ -129,7 +129,7 @@ export const SettingsView: React.FC = () => {
                                 onClick={() => handleModeChange('rpg')}
                                 className={`flex-1 p-4 rounded-themed border-2 transition-all ${mode === 'rpg' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}
                             >
-                                <h4 className="font-bold text-text-primary font-header">RPG Mode</h4>
+                                <h4 className="font-bold text-text-primary font-header">Gamified Mode</h4>
                                 <p className="text-sm text-text-secondary">A gamified, fantasy-themed interface with XP, levels, and quests.</p>
                             </button>
                              <button

@@ -1,17 +1,17 @@
 # TaskMaster Concept (Source of Truth)
 
 ## Purpose
-TaskMaster helps users turn thoughts into action through fast task capture, clear daily execution, and adaptive AI support. The core promise is: less friction, more consistency, and better life balance without pressure-heavy UX.
+TaskMaster helps users turn thoughts into action through fast task capture, clear daily execution, and adaptive AI support. The core promise is a rewarding daily loop: create tasks quickly, complete tasks easily, feel meaningful progress, and keep coming back because the experience is satisfying without pressure-heavy UX.
 
 ## Product Identity
 - AI-powered task manager first, gamification second.
 - Encouraging tone over guilt/shame messaging.
 - Works in two usable modes:
   - `minimal`: focused productivity.
-  - `rpg`: progression/reward layer on top of productivity.
+  - `gamified`: progression/reward layer on top of productivity.
 
 ## Core Principles
-1. **Action over planning overhead**: users can quickly capture intent in plain language.
+1. **Action over planning overhead**: users can quickly capture intent in plain language and apply updates in bulk (for example, "I did X, Y, and Z today").
 2. **Consistency beats intensity**: reward small repeatable wins.
 3. **Personalized but user-controlled**: AI should adapt to user context, with clear controls and opt-out.
 4. **Balance-aware guidance**: suggestions should help neglected life areas (productivity, fun, relaxation, social, health).
@@ -24,7 +24,7 @@ The app already includes these major capabilities:
 - Task CRUD with scheduling, deadlines, and recurrence.
 - AI enrichment + AI suggestions (Today + Explore).
 - Persona/profile synthesis and clarification-question flow.
-- RPG progression paths (quests/rewards/XP) plus minimal mode.
+- Gamified progression paths (quests/rewards/XP) plus minimal mode.
 - Theme system and mode/theme settings.
 - Group/sort/filter behavior in Today view.
 
@@ -39,9 +39,9 @@ Use this section as a guardrail when writing TODO items so duplicates are not ad
 
 ## UX Direction
 - Keep all primary actions available from the Today workflow.
-- Prefer one-screen completability for common actions.
-- Make AI actions explicit ("what the app is about to do") before commit.
-- Support both guided and manual control paths on every major flow.
+- Prefer one-screen completability for common actions and avoid extra manual steps.
+- Make AI actions explicit ("what the app is about to do") before commit, then let users confirm or edit.
+- Support both guided and manual control paths on major flows.
 
 ## AI Behavior Requirements
 - All AI responses are structured JSON through `claudeService`.

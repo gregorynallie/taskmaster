@@ -8,6 +8,7 @@ export const SettingsView: React.FC = () => {
     const { 
         mode, setMode, theme, setTheme, clearAllData, resetOnboarding, 
         showSpoofedTasks, toggleShowSpoofedTasks, soundEffectsEnabled, toggleSoundEffects,
+        enrichTasksOnCreation, toggleEnrichTasksOnCreation,
         favoriteThemes, toggleFavoriteTheme, shuffleThemesOnLoad, setShuffleThemesOnLoad 
     } = useSettings();
 
@@ -160,6 +161,30 @@ export const SettingsView: React.FC = () => {
                                 <span
                                     className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
                                         soundEffectsEnabled ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                        </div>
+                        {/* Enrich Tasks On Creation Toggle */}
+                        <div className="p-4 bg-secondary/30 rounded-themed flex justify-between items-center">
+                            <div>
+                                <label htmlFor="enrich-create-toggle" className="text-text-primary font-medium">
+                                    Enrich Tasks On Creation
+                                </label>
+                                <p className="text-sm text-text-secondary font-normal">Use AI while adding tasks. Off = faster add with manual-first defaults.</p>
+                            </div>
+                            <button
+                                id="enrich-create-toggle"
+                                role="switch"
+                                aria-checked={enrichTasksOnCreation}
+                                onClick={toggleEnrichTasksOnCreation}
+                                className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-primary ${
+                                    enrichTasksOnCreation ? 'bg-primary' : 'bg-secondary'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${
+                                        enrichTasksOnCreation ? 'translate-x-6' : 'translate-x-1'
                                     }`}
                                 />
                             </button>

@@ -14,6 +14,7 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
 2. **Set up environment**
    - Copy `.env.example` to `.env.local`
    - Add your keys: `ANTHROPIC_API_KEY`, `VITE_FIREBASE_API_KEY`
+   - Optional Phase-3 gateway mode: set `VITE_AI_GATEWAY_URL=/api/claude` when deploying with the serverless API route in `api/claude.ts`
    - Never commit `.env.local` (it’s gitignored)
 
 3. **Start the app**
@@ -80,3 +81,11 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
 
 - **Git:** Commit often; use `git add .` → `git commit -m "..."` → `git push` to save versions and sync to GitHub.
 - **Developer guide:** See [CLAUDE.md](CLAUDE.md) for architecture, conventions, and AI service details.
+
+## AI Gateway (Phase 3)
+
+- This repo includes a serverless gateway endpoint at `api/claude.ts`.
+- In production (for example Vercel), set:
+  - `ANTHROPIC_API_KEY` (server env var, never exposed to browser)
+  - `VITE_AI_GATEWAY_URL=/api/claude` (client env var)
+- If `VITE_AI_GATEWAY_URL` is unset, the app falls back to direct browser Claude calls (legacy mode).

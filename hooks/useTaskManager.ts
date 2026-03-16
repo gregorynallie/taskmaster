@@ -40,6 +40,7 @@ interface TaskManagerProps {
     };
     settings: {
         setHasOnboarded: (has: boolean) => void;
+        enrichTasksOnCreation: boolean;
     };
     userProfileActions: {
         updateUserProfile: (updates: Partial<any>) => void;
@@ -192,7 +193,28 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         const tasksRef = collection(db, 'users', user.uid, 'tasks');
 
         if (typeof taskData === 'string') {
-            const enrichedTasksData = await claudeService.enrichTaskWithAI(taskData, userProfile);
+            const originalInput = taskData.trim();
+            if (!originalInput) return;
+
+            if (!settings.enrichTasksOnCreation) {
+                const fallbackTask: Omit<Task, 'id'> = {
+                    title: originalInput,
+                    description: '',
+                    category: 'Productivity',
+                    duration_min: 15,
+                    xp_estimate: 20,
+                    recurring: null,
+                    original_input: originalInput,
+                    created_at: new Date(),
+                    scheduled_at: determineScheduledAt({ title: originalInput }, date),
+                    completed_at: null,
+                    xp_awarded: null,
+                };
+                await addDoc(tasksRef, fallbackTask);
+                return;
+            }
+
+            const enrichedTasksData = await claudeService.enrichTaskWithAI(originalInput, userProfile);
             const batch = writeBatch(db);
             enrichedTasksData.forEach((enrichedData, index) => {
                 const newDocRef = doc(tasksRef);

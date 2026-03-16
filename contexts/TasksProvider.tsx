@@ -28,6 +28,7 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         },
         settings: {
             setHasOnboarded: settingsManager.setHasOnboarded,
+            enrichTasksOnCreation: settingsManager.enrichTasksOnCreation,
         },
         userProfileActions: {
             updateUserProfile: userProfileManager.updateUserProfile,

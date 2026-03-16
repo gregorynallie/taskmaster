@@ -53,6 +53,7 @@ export const useSettingsManager = () => {
     const [currentView, _setCurrentView] = usePersistentState<View>('taskmaster_currentView', 'today');
     const [previousView, setPreviousView] = usePersistentState<View>('taskmaster_previousView', 'today');
     const [soundEffectsEnabled, setSoundEffectsEnabled] = usePersistentState<boolean>('taskmaster_soundEffectsEnabled', true);
+    const [enrichTasksOnCreation, setEnrichTasksOnCreation] = usePersistentState<boolean>('taskmaster_enrichTasksOnCreation', false);
     const [defaultViewSettings, setDefaultViewSettings] = usePersistentState<ViewSettings | undefined>('taskmaster_defaultViewSettings', defaultInitialViewSettings);
     const [showSpoofedTasks, setShowSpoofedTasks] = usePersistentState<boolean>('taskmaster_showSpoofedTasks', true);
     const [favoriteThemes, setFavoriteThemes] = usePersistentState<string[]>('taskmaster_favoriteThemes', featuredThemeIds);
@@ -71,6 +72,10 @@ export const useSettingsManager = () => {
 
     const toggleSoundEffects = () => {
         setSoundEffectsEnabled(prev => !prev);
+    };
+
+    const toggleEnrichTasksOnCreation = () => {
+        setEnrichTasksOnCreation(prev => !prev);
     };
     
     const updateDefaultViewSettings = (settings: ViewSettings) => {
@@ -113,6 +118,8 @@ export const useSettingsManager = () => {
         previousView,
         soundEffectsEnabled,
         toggleSoundEffects,
+        enrichTasksOnCreation,
+        toggleEnrichTasksOnCreation,
         defaultViewSettings,
         updateDefaultViewSettings,
         showSpoofedTasks,

@@ -21,52 +21,306 @@ import { v4 as uuidv4 } from 'uuid';
 
 const CLAUDE_MODEL = 'claude-sonnet-4-6';
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+const AI_GATEWAY_URL = (process.env.VITE_AI_GATEWAY_URL || '').trim();
+const AI_CACHE_PREFIX = 'taskmaster_ai_cache:v1:';
+const MAX_CONCURRENT_AI_REQUESTS = 2;
+const MAX_RETRIES = 2;
+
+type AIFeature =
+    | 'general'
+    | 'onboarding'
+    | 'ui_content'
+    | 'explore'
+    | 'task_enrich'
+    | 'quest'
+    | 'suggestions'
+    | 'persona'
+    | 'insights'
+    | 'clarification';
+
+type RequestTask = {
+    id: string;
+    feature: AIFeature;
+    priority: number;
+    run: () => Promise<void>;
+};
+
+const FEATURE_PRIORITY: Record<AIFeature, number> = {
+    task_enrich: 100,
+    onboarding: 90,
+    quest: 85,
+    suggestions: 70,
+    explore: 65,
+    persona: 55,
+    clarification: 50,
+    ui_content: 40,
+    insights: 35,
+    general: 20,
+};
+
+const FEATURE_COOLDOWN_MS: Record<AIFeature, number> = {
+    task_enrich: 250,
+    onboarding: 400,
+    quest: 600,
+    suggestions: 1000,
+    explore: 1200,
+    persona: 3000,
+    clarification: 1200,
+    ui_content: 1000,
+    insights: 2000,
+    general: 800,
+};
+
+const queue: RequestTask[] = [];
+let activeRequests = 0;
+const lastStartedAtByFeature = new Map<AIFeature, number>();
+
+type AIRuntimeStats = {
+    enqueued: number;
+    started: number;
+    succeeded: number;
+    failed: number;
+    retries: number;
+    rateLimited: number;
+    cacheHits: number;
+    cacheMisses: number;
+};
+
+const aiRuntimeStats: AIRuntimeStats = {
+    enqueued: 0,
+    started: 0,
+    succeeded: 0,
+    failed: 0,
+    retries: 0,
+    rateLimited: 0,
+    cacheHits: 0,
+    cacheMisses: 0,
+};
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const parseRetryAfterMs = (response: Response): number | null => {
+    const retryAfterHeader = response.headers.get('retry-after');
+    if (!retryAfterHeader) return null;
+    const numeric = Number(retryAfterHeader);
+    if (!Number.isNaN(numeric)) return Math.max(0, numeric * 1000);
+    const asDate = new Date(retryAfterHeader);
+    const ms = asDate.getTime() - Date.now();
+    return Number.isFinite(ms) ? Math.max(0, ms) : null;
+};
+
+const processQueue = () => {
+    while (activeRequests < MAX_CONCURRENT_AI_REQUESTS && queue.length > 0) {
+        queue.sort((a, b) => b.priority - a.priority);
+        const nextTask = queue.shift();
+        if (!nextTask) break;
+        activeRequests += 1;
+        aiRuntimeStats.started += 1;
+        void nextTask.run().finally(() => {
+            activeRequests -= 1;
+            processQueue();
+        });
+    }
+};
+
+const scheduleRequest = async <T>(feature: AIFeature, runner: () => Promise<T>): Promise<T> => {
+    const priority = FEATURE_PRIORITY[feature];
+    const taskId = uuidv4();
+    aiRuntimeStats.enqueued += 1;
+    return new Promise<T>((resolve, reject) => {
+        queue.push({
+            id: taskId,
+            feature,
+            priority,
+            run: async () => {
+                try {
+                    const previousStart = lastStartedAtByFeature.get(feature) || 0;
+                    const cooldownMs = FEATURE_COOLDOWN_MS[feature];
+                    const elapsed = Date.now() - previousStart;
+                    if (elapsed < cooldownMs) {
+                        await sleep(cooldownMs - elapsed);
+                    }
+                    lastStartedAtByFeature.set(feature, Date.now());
+                    const result = await runner();
+                    resolve(result);
+                } catch (error) {
+                    reject(error);
+                }
+            },
+        });
+        processQueue();
+    });
+};
+
+type CacheEnvelope<T> = {
+    expiresAt: number;
+    value: T;
+};
+
+const cacheKey = (key: string) => `${AI_CACHE_PREFIX}${key}`;
+
+const readCache = <T>(key: string): T | null => {
+    try {
+        const raw = localStorage.getItem(cacheKey(key));
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as CacheEnvelope<T>;
+        if (!parsed || typeof parsed.expiresAt !== 'number' || Date.now() > parsed.expiresAt) {
+            localStorage.removeItem(cacheKey(key));
+            return null;
+        }
+        aiRuntimeStats.cacheHits += 1;
+        return parsed.value;
+    } catch {
+        return null;
+    }
+};
+
+const writeCache = <T>(key: string, value: T, ttlMs: number) => {
+    try {
+        const envelope: CacheEnvelope<T> = { value, expiresAt: Date.now() + ttlMs };
+        localStorage.setItem(cacheKey(key), JSON.stringify(envelope));
+    } catch {
+        // localStorage may be unavailable or full; fail silently.
+    }
+};
+
+const withCache = async <T>(options: {
+    key?: string;
+    ttlMs?: number;
+    producer: () => Promise<T>;
+}): Promise<T> => {
+    const { key, ttlMs, producer } = options;
+    if (key && ttlMs && ttlMs > 0) {
+        const cached = readCache<T>(key);
+        if (cached !== null) return cached;
+        aiRuntimeStats.cacheMisses += 1;
+    }
+    const value = await producer();
+    if (key && ttlMs && ttlMs > 0) {
+        writeCache(key, value, ttlMs);
+    }
+    return value;
+};
+
+const profileFingerprint = (userProfile?: UserProfile): string => {
+    if (!userProfile) return 'none';
+    return [
+        userProfile.personaId || '',
+        userProfile.interests || '',
+        userProfile.dislikes || '',
+        userProfile.longTermGoals || '',
+        userProfile.dailyRhythm || '',
+        userProfile.aiInsights.length.toString(),
+    ].join('|').toLowerCase().trim();
+};
+
+const stableHash = (value: string): string => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+        hash = (hash * 31 + value.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash).toString(36);
+};
 
 // ---------------------------------------------------------------------------
 // Core API helper
 // ---------------------------------------------------------------------------
 
-const callClaude = async (systemPrompt: string, userPrompt: string, maxTokens = 1000): Promise<string> => {
-    const response = await fetch(ANTHROPIC_API_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
-            'anthropic-version': '2023-06-01',
-            'anthropic-dangerous-direct-browser-access': 'true',
-        },
-        body: JSON.stringify({
-            model: CLAUDE_MODEL,
-            max_tokens: maxTokens,
-            system: systemPrompt,
-            messages: [{ role: 'user', content: userPrompt }],
-        }),
+const callClaude = async (
+    systemPrompt: string,
+    userPrompt: string,
+    maxTokens = 1000,
+    feature: AIFeature = 'general'
+): Promise<string> => {
+    return scheduleRequest(feature, async () => {
+        let lastError: Error | null = null;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+            const usingGateway = !!AI_GATEWAY_URL;
+            const response = usingGateway
+                ? await fetch(AI_GATEWAY_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model: CLAUDE_MODEL,
+                        maxTokens,
+                        systemPrompt,
+                        userPrompt,
+                    }),
+                })
+                : await fetch(ANTHROPIC_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': process.env.ANTHROPIC_API_KEY ?? '',
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true',
+                    },
+                    body: JSON.stringify({
+                        model: CLAUDE_MODEL,
+                        max_tokens: maxTokens,
+                        system: systemPrompt,
+                        messages: [{ role: 'user', content: userPrompt }],
+                    }),
+                });
+
+            if (response.ok) {
+                aiRuntimeStats.succeeded += 1;
+                const data = await response.json();
+                const text = usingGateway
+                    ? String((data as any).content ?? '')
+                    : (data.content || [])
+                        .filter((block: any) => block.type === 'text')
+                        .map((block: any) => block.text)
+                        .join('');
+                return text;
+            }
+
+            const errText = await response.text();
+            const error = new Error(`Anthropic API error ${response.status}: ${errText}`);
+            lastError = error;
+
+            if (response.status === 429 && attempt < MAX_RETRIES) {
+                aiRuntimeStats.rateLimited += 1;
+                aiRuntimeStats.retries += 1;
+                const retryAfterMs = parseRetryAfterMs(response);
+                const backoffBase = 600 * Math.pow(2, attempt);
+                const jitter = Math.floor(Math.random() * 250);
+                await sleep(Math.max(retryAfterMs ?? 0, backoffBase + jitter));
+                continue;
+            }
+
+            aiRuntimeStats.failed += 1;
+            throw error;
+        }
+
+        aiRuntimeStats.failed += 1;
+        throw lastError ?? new Error('Unknown Claude API error');
     });
-
-    if (!response.ok) {
-        const err = await response.text();
-        throw new Error(`Anthropic API error ${response.status}: ${err}`);
-    }
-
-    const data = await response.json();
-    const text = data.content
-        .filter((block: any) => block.type === 'text')
-        .map((block: any) => block.text)
-        .join('');
-
-    return text;
 };
 
-const generateJson = async <T>(systemPrompt: string, userPrompt: string, maxTokens = 1000): Promise<T> => {
+const generateJson = async <T>(
+    systemPrompt: string,
+    userPrompt: string,
+    maxTokens = 1000,
+    options?: { feature?: AIFeature; cache?: { key: string; ttlMs: number } }
+): Promise<T> => {
     const fullSystem = `${systemPrompt}\n\nCRITICAL: Your response must be valid JSON only. No markdown fences, no preamble, no explanation — just raw JSON.`;
-    const raw = await callClaude(fullSystem, userPrompt, maxTokens);
-    const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
-    try {
-        return JSON.parse(clean) as T;
-    } catch (e) {
-        console.error('JSON parse failed. Raw response:', raw);
-        throw new Error('Failed to parse JSON from Claude response');
-    }
+    return withCache<T>({
+        key: options?.cache?.key,
+        ttlMs: options?.cache?.ttlMs,
+        producer: async () => {
+            const raw = await callClaude(fullSystem, userPrompt, maxTokens, options?.feature ?? 'general');
+            const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+            try {
+                return JSON.parse(clean) as T;
+            } catch (e) {
+                console.error('JSON parse failed. Raw response:', raw);
+                throw new Error('Failed to parse JSON from Claude response');
+            }
+        },
+    });
 };
 
 // ---------------------------------------------------------------------------
@@ -130,7 +384,7 @@ INSTRUCTIONS:
 6. Return a JSON array sorted by scheduled_at ascending.`;
 
     try {
-        const result = await generateJson<EnrichedTaskData[]>(system, user, 4096);
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 4096, { feature: 'onboarding' });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
         return result;
     } catch (e) {
@@ -166,7 +420,11 @@ Each has "placeholders" (array of {question, example, subtext}) and "explore"/"p
 Generate highly personalized, creative content for all three sections.`;
 
     try {
-        const result = await generateJson<any>(system, user, 3000);
+        const cacheIdentity = stableHash(`${profileFingerprint(userProfile)}|${mode}|${timeOfDay}|${dayOfWeek}`);
+        const result = await generateJson<any>(system, user, 3000, {
+            feature: 'ui_content',
+            cache: { key: `initial_persona_content:${cacheIdentity}`, ttlMs: 1000 * 60 * 30 },
+        });
         // Ensure formatting consistency
         const fix = (placeholders: Placeholder[]) => placeholders.map(p => ({
             ...p,
@@ -198,7 +456,10 @@ Descriptions must be immediately useful — provide actual content, steps, or li
 reasoning must be 2-4 words only.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096);
+        const result = await generateJson<Suggestion[]>(system, user, 4096, {
+            feature: 'explore',
+            cache: { key: `initial_explore:${stableHash(profileFingerprint(userProfile))}`, ttlMs: 1000 * 60 * 20 },
+        });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
         return result;
     } catch (e) {
@@ -241,7 +502,7 @@ INSTRUCTIONS:
 6. Apply all filters strictly.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096);
+        const result = await generateJson<Suggestion[]>(system, user, 4096, { feature: 'explore' });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
         return result;
     } catch (e) {
@@ -264,7 +525,11 @@ Analyze for: multiple tasks (commas, "and", newlines), recurring patterns ("ever
 Generate a two-part subtext: what the app will do + how to change it. Return JSON.`;
 
     try {
-        const result = await generateJson<{ subtext: string }>(system, user, 200);
+        const cacheIdentity = stableHash(`${taskInput.trim().toLowerCase()}|${profileFingerprint(userProfile)}`);
+        const result = await generateJson<{ subtext: string }>(system, user, 200, {
+            feature: 'task_enrich',
+            cache: { key: `parsing_subtext:${cacheIdentity}`, ttlMs: 1000 * 60 * 20 },
+        });
         return result.subtext || '';
     } catch (e) {
         console.error('getParsingSubtext failed:', e);
@@ -284,7 +549,7 @@ Task to replace: "${taskToReplace.title}" — ${taskToReplace.description}
 Generate ONE creative alternative task that helps achieve the quest goal but is different from the original.`;
 
     try {
-        return await generateJson<Suggestion>(system, user, 600);
+        return await generateJson<Suggestion>(system, user, 600, { feature: 'quest' });
     } catch (e) {
         return null;
     }
@@ -323,7 +588,7 @@ INSTRUCTIONS:
     }];
 
     try {
-        const result = await generateJson<EnrichedTaskData[]>(system, user, 3000);
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 3000, { feature: 'task_enrich' });
         if (!Array.isArray(result) || result.length === 0) return createFallback();
         return result.map((item: any) => ({ ...item, original_input: taskInput }));
     } catch (e) {
@@ -355,7 +620,7 @@ INSTRUCTIONS:
 4. Spread scheduled_at: start today, then around ${futureDate1.toISOString()}, then ${futureDate2.toISOString()}
 5. Each description must provide actual useful content — steps, tips, or resource links. No vague descriptions.`;
 
-    return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 4096);
+    return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 4096, { feature: 'quest' });
 };
 
 export const getSuggestions = async (options: {
@@ -401,7 +666,7 @@ MANDATES:
 6. reasoning must be 2-4 words. context_tag must be brief.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096);
+        const result = await generateJson<Suggestion[]>(system, user, 4096, { feature: 'suggestions' });
         if (!Array.isArray(result)) throw new Error('Not an array');
         return result;
     } catch (e) {
@@ -439,7 +704,7 @@ Other tasks for the day: ${tasksForDay.map(t => t.title).join(', ')}
 Generate ONE task that logically fits this position. reasoning must explain the logical connection in 2-4 words.`;
 
     try {
-        return await generateJson<Suggestion>(system, user, 600);
+        return await generateJson<Suggestion>(system, user, 600, { feature: 'suggestions' });
     } catch (e) {
         return null;
     }
@@ -468,7 +733,7 @@ ${userProfile.aiInsights.map(i => `- ${i.insight}`).join('\n')}
 
 Find 1-2 novel, non-obvious insights. Observations only — no advice.`;
 
-    const insights = await generateJson<any[]>(system, user, 600);
+    const insights = await generateJson<any[]>(system, user, 600, { feature: 'insights' });
     return insights.map(i => ({ ...i, id: `insight-${uuidv4()}`, status: 'pending' }));
 };
 
@@ -497,7 +762,11 @@ Generate:
 4. clarificationQuestions: 3 open-ended questions (with category, question, exampleAnswer) that would help understand them better — don't repeat anything already in the profile`;
 
     try {
-        const result = await generateJson<any>(system, user, 1000);
+        const cacheIdentity = stableHash(`${profileFingerprint(userProfile)}|${correctiveFeedback || ''}`);
+        const result = await generateJson<any>(system, user, 1000, {
+            feature: 'persona',
+            cache: { key: `persona_summary:${cacheIdentity}`, ttlMs: 1000 * 60 * 20 },
+        });
         const questionsWithIds = result.clarificationQuestions.map((q: any) => ({ ...q, id: `q-${uuidv4()}` }));
         return { ...result, clarificationQuestions: questionsWithIds, lastUpdatedAt: new Date().toISOString() };
     } catch (e) {
@@ -529,7 +798,7 @@ ${options?.excludedCategories ? `- Must NOT be in categories: ${options.excluded
 Generate one new, open-ended question with clickable options.`;
 
     try {
-        return await generateJson<Partial<ClarificationQuestion>>(system, user, 400);
+        return await generateJson<Partial<ClarificationQuestion>>(system, user, 400, { feature: 'clarification' });
     } catch (e) {
         return null;
     }
@@ -553,8 +822,10 @@ Options to avoid: ${existingOptions.join(', ')}
 Generate 4 new, diverse, clickable answer options.`;
 
     try {
-        return await generateJson<string[]>(system, user, 200);
+        return await generateJson<string[]>(system, user, 200, { feature: 'clarification' });
     } catch (e) {
         return null;
     }
 };
+
+export const getAIRuntimeStats = (): AIRuntimeStats => ({ ...aiRuntimeStats });

@@ -22,6 +22,8 @@ export type SettingsContextType = {
     previousView: View;
     soundEffectsEnabled: boolean;
     toggleSoundEffects: () => void;
+    enrichTasksOnCreation: boolean;
+    toggleEnrichTasksOnCreation: () => void;
     defaultViewSettings?: ViewSettings;
     updateDefaultViewSettings: (settings: ViewSettings) => void;
     showSpoofedTasks: boolean;

@@ -11,7 +11,7 @@ interface QuickAddTaskProps {
 
 export const QuickAddTask: React.FC<QuickAddTaskProps> = React.memo(({ selectedDate }) => {
     const { addTask } = useTasks();
-    const { mode, theme } = useSettings();
+    const { mode, theme, enrichTasksOnCreation } = useSettings();
     const [inputValue, setInputValue] = useState('');
     
     // State for the submission animation flow
@@ -62,13 +62,14 @@ export const QuickAddTask: React.FC<QuickAddTaskProps> = React.memo(({ selectedD
 
     const buttonText = mode === 'rpg' ? 'Add Quest' : 'Add Task';
     const creativeCopy = "Consider it done.";
+    const loadingLabel = enrichTasksOnCreation ? 'Enriching...' : 'Adding...';
 
     if (uiState === 'loading') {
         return (
              <div className="relative min-h-[116px]">
                 <div className="absolute inset-0 bg-surface rounded-themed shadow-themed p-4 flex items-center justify-center gap-3 h-[116px] animate-themed-enter">
                     <div className="w-6 h-6 border-4 border-accent/30 border-t-accent rounded-full animate-spin"></div>
-                    <span className="text-lg font-semibold text-text-secondary animate-pulse">Enriching...</span>
+                    <span className="text-lg font-semibold text-text-secondary animate-pulse">{loadingLabel}</span>
                 </div>
             </div>
         );

@@ -1,5 +1,6 @@
 TaskMaster Backlog:
   Input & AI:
+    ✔ Add Settings toggle to control AI task enrichment on creation (default off) @high
     ☐ Add command-style task input (create/reschedule/complete/query) with clear confirmation before apply @high
     ☐ Add prompt quality/relevance tuning loop (track accept/edit/dismiss signals and improve suggestion quality over time) @high
     ☐ Add bulk completion from natural-language recap ("I did X, Y, Z today") with preview + confirm @high
@@ -28,7 +29,9 @@ TaskMaster Backlog:
     ☐ Add reward-style personalization controls without changing core task flow @low
     ☐ Audit and enforce task-manager standalone quality independent of gamified layer @medium
   Reliability & Platform:
-    ☐ Add AI usage guardrails (rate limits, debounce, and user-facing fallback states) @high
+    ✔ Add AI usage guardrails (global queue, per-feature cooldowns/priorities, 429 backoff, and shared cache fallbacks) @high
+    ✔ Implement optional server-side Claude gateway path (`/api/claude`) with client env switch (`VITE_AI_GATEWAY_URL`) @high
+    ☐ Set up first deployment host (Vercel or equivalent) and configure `ANTHROPIC_API_KEY` + `VITE_AI_GATEWAY_URL=/api/claude` @high
     ☐ Move AI API calls behind a server endpoint before wider friend testing (no client-exposed API key) @high
     ☐ Package iOS beta via Capacitor + TestFlight for friend testing before App Store release @high
     ☐ Ensure AI-off/manual-first parity across core flows (no dead ends) @high

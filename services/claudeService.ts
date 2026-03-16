@@ -140,6 +140,13 @@ const AI_QUALITY_MODE_CONFIG: Record<AIQualityMode, AIQualityModeConfig> = {
         questContextLimit: 20,
         feedbackContextLimit: 12,
     },
+    no_ai: {
+        tokenMultiplier: 1.0,
+        suggestionDescriptionWordLimit: 24,
+        taskContextLimit: 20,
+        questContextLimit: 8,
+        feedbackContextLimit: 5,
+    },
 };
 
 const queue: RequestTask[] = [];
@@ -220,7 +227,7 @@ const parseNonNegativeNumber = (raw: string): number | null => {
 };
 
 const parseAIQualityMode = (raw: string | null): AIQualityMode => {
-    if (raw === 'balanced' || raw === 'high_context' || raw === 'cost_saver') return raw;
+    if (raw === 'balanced' || raw === 'high_context' || raw === 'cost_saver' || raw === 'no_ai') return raw;
     return 'cost_saver';
 };
 
@@ -236,6 +243,7 @@ const getCurrentAIQualityMode = (): AIQualityMode => {
 };
 
 const getCurrentAIQualityModeConfig = (): AIQualityModeConfig => AI_QUALITY_MODE_CONFIG[getCurrentAIQualityMode()];
+const isNoAIMode = (): boolean => getCurrentAIQualityMode() === 'no_ai';
 
 const applyQualityModeTokenMultiplier = (maxTokens: number): number => {
     const { tokenMultiplier } = getCurrentAIQualityModeConfig();
@@ -504,6 +512,118 @@ const parseJsonResilient = <T>(raw: string): T => {
     return JSON.parse(normalized) as T;
 };
 
+const clampDuration = (minutes: number): number => Math.max(5, Math.min(90, minutes));
+
+const normalizeCategory = (candidate: string): string => {
+    const match = TASK_CATEGORIES.find(c => c.toLowerCase() === candidate.toLowerCase());
+    return match || TASK_CATEGORIES[0] || 'Productivity';
+};
+
+const seedFromText = (value: string): number => {
+    const text = value || 'taskmaster';
+    let out = 0;
+    for (let i = 0; i < text.length; i += 1) out = (out * 31 + text.charCodeAt(i)) | 0;
+    return Math.abs(out);
+};
+
+const localEnrichedTask = (title: string, category: string, minutes: number, originalInput?: string): EnrichedTaskData => ({
+    title,
+    description: 'Manual-first task. Edit details as needed.',
+    category: normalizeCategory(category),
+    duration_min: clampDuration(minutes),
+    xp_estimate: Math.max(10, Math.round(clampDuration(minutes) * 1.2)),
+    recurring: null,
+    original_input: originalInput,
+});
+
+const localProjectScaffold = (goal: string): { name: string; narrative: string; tasks: EnrichedTaskData[] } => {
+    const trimmedGoal = goal.trim() || 'New Project';
+    return {
+        name: trimmedGoal.length > 48 ? `${trimmedGoal.slice(0, 45)}...` : trimmedGoal,
+        narrative: 'A focused manual plan generated without AI. Start small, iterate quickly, and track momentum.',
+        tasks: [
+            localEnrichedTask(`Define success for: ${trimmedGoal}`, 'Productivity', 20),
+            localEnrichedTask(`Create a 3-step plan for ${trimmedGoal}`, 'Productivity', 25),
+            localEnrichedTask(`Do the first concrete step for ${trimmedGoal}`, 'Productivity', 30),
+        ],
+    };
+};
+
+const localSuggestions = (options: { userProfile: UserProfile; prompt?: string; count: number; includeProjectStarter?: boolean }): Suggestion[] => {
+    const { userProfile, prompt = '', count, includeProjectStarter = false } = options;
+    const goalSnippet = (userProfile.longTermGoals || prompt || 'your priorities').split(/[.,;\n]/)[0].trim() || 'your priorities';
+    const interestSnippet = (userProfile.interests || 'your interests').split(/[.,;\n]/)[0].trim() || 'your interests';
+    const base: Array<{ title: string; category: string; min: number; reason: string; tag: string }> = [
+        { title: `15-minute focus sprint on ${goalSnippet}`, category: 'Productivity', min: 15, reason: 'Focus boost', tag: 'Quick progress' },
+        { title: 'Review and reorder top 3 tasks', category: 'Productivity', min: 10, reason: 'Clarity first', tag: 'Daily alignment' },
+        { title: `Take a short reset break (${interestSnippet})`, category: 'Health', min: 12, reason: 'Energy reset', tag: 'Sustainable pace' },
+        { title: 'Plan tomorrow in three bullets', category: 'Productivity', min: 12, reason: 'Reduce friction', tag: 'Tomorrow-ready' },
+        { title: 'Close one lingering admin task', category: 'Productivity', min: 20, reason: 'Reduce drag', tag: 'Clean slate' },
+        { title: 'Capture one improvement for your routine', category: 'Personal Growth', min: 10, reason: 'Micro learning', tag: 'Compound gains' },
+    ];
+
+    const offset = seedFromText(`${prompt}|${userProfile.interests}|${userProfile.longTermGoals}`) % base.length;
+    const ordered = [...base.slice(offset), ...base.slice(0, offset)];
+    const picked = ordered.slice(0, Math.max(1, count));
+    const mapped = picked.map((b, idx) => ({
+        ...localEnrichedTask(b.title, b.category, b.min),
+        reasoning: b.reason,
+        context_tag: b.tag,
+        id: `local-sugg-${seedFromText(`${b.title}-${idx}-${prompt}`)}`,
+    })) as Suggestion[];
+
+    if (includeProjectStarter && mapped.length > 0) {
+        const project = localProjectScaffold(goalSnippet);
+        mapped[0] = {
+            ...mapped[0],
+            title: `Start project: ${project.name}`,
+            isProjectStarter: true,
+            projectName: project.name,
+            questNarrative: project.narrative,
+            subtasks: project.tasks,
+            reasoning: 'Project kickoff',
+            context_tag: 'Structured plan',
+        };
+    }
+
+    return mapped.slice(0, count);
+};
+
+const localPersonaSummary = (userProfile: UserProfile): AIPersonaSummary => {
+    const themes = Array.from(new Set([
+        userProfile.interests ? 'Interests-led' : 'Practical',
+        userProfile.longTermGoals ? 'Goal-driven' : 'Task-focused',
+        userProfile.dailyRhythm ? 'Rhythm-aware' : 'Flexible routine',
+    ])).slice(0, 5);
+    return {
+        persona: 'Manual-first profile mode. Suggestions prioritize clarity, consistency, and low-friction progress.',
+        keyThemes: themes,
+        suggestionStrategy: [
+            'Prioritize one meaningful win early.',
+            'Keep tasks small and clearly finishable.',
+            'Use routine anchors to stay consistent.',
+        ],
+        clarificationQuestions: [
+            {
+                id: `q-${uuidv4()}`,
+                category: 'Focus',
+                question: 'What one outcome matters most this week?',
+                exampleAnswer: 'Finish the next module and apply it in one task.',
+                options: ['Work', 'Health', 'Learning', 'Personal admin'],
+            },
+            {
+                id: `q-${uuidv4()}`,
+                category: 'Schedule',
+                question: 'When is your most reliable focus window?',
+                exampleAnswer: 'Weeknights around 8 PM.',
+                options: ['Morning', 'Afternoon', 'Evening', 'Varies'],
+            },
+        ],
+        lastUpdatedAt: new Date().toISOString(),
+        status: 'current',
+    };
+};
+
 // ---------------------------------------------------------------------------
 // Core API helper
 // ---------------------------------------------------------------------------
@@ -515,6 +635,21 @@ const callClaude = async (
     feature: AIFeature = 'general',
     requestedTier?: AIQualityTier
 ): Promise<string> => {
+    if (isNoAIMode()) {
+        setLastAIActionSnapshot({
+            status: 'blocked',
+            feature,
+            qualityTier: requestedTier ?? 'standard',
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            estimatedUSD: 0,
+            timestamp: Date.now(),
+            reason: 'No AI mode enabled',
+        });
+        throw new Error('AI is disabled in No AI mode.');
+    }
+
     return scheduleRequest(feature, async () => {
         let lastError: Error | null = null;
         const qualityTier = resolveQualityTier({ feature, userPrompt, requestedTier });
@@ -726,6 +861,27 @@ Additionally each suggestion object must also have:
 // ---------------------------------------------------------------------------
 
 export const generateStarterTasksFromOnboarding = async (answers: OnboardingAnswers, mode: Mode): Promise<EnrichedTaskData[]> => {
+    if (isNoAIMode()) {
+        const now = new Date();
+        const baseTitles = [
+            `Plan your top priorities for ${now.toLocaleDateString('en-US', { weekday: 'long' })}`,
+            'Review tasks and set your top 3',
+            'Close one quick admin task',
+            'Do one focused 25-minute work block',
+            'Reflect and plan tomorrow in three bullets',
+            'Take a short recharge break',
+        ];
+        return baseTitles.map((title, idx) => {
+            const date = new Date(now);
+            date.setDate(date.getDate() + Math.floor(idx / 2));
+            date.setHours(idx % 2 === 0 ? 9 : 18, 0, 0, 0);
+            return {
+                ...localEnrichedTask(title, 'Productivity', idx % 2 === 0 ? 20 : 15),
+                scheduled_at: date.toISOString(),
+            };
+        });
+    }
+
     const system = `You are an AI life coach setting up a new user's account. Generate a personalized starter pack of 6-8 tasks.
 ${ENRICHED_TASK_SCHEMA}
 Output a JSON array of task objects sorted chronologically by scheduled_at.`;
@@ -765,6 +921,48 @@ export const getInitialPersonaContent = async (userProfile: UserProfile, mode: M
     explore: { placeholders: Placeholder[], pills: SuggestionPill[] };
     project: { placeholders: Placeholder[], pills: SuggestionPill[] };
 }> => {
+    if (isNoAIMode()) {
+        const goalHint = (userProfile.longTermGoals || 'your next priorities').split(/[.,;\n]/)[0];
+        const interestHint = (userProfile.interests || 'your routine').split(/[.,;\n]/)[0];
+        return {
+            task: {
+                placeholders: [
+                    { question: 'What is one thing you want done today?', example: 'Example: Draft weekly update', subtext: '💡 Keep tasks specific and finishable.' },
+                    { question: 'Add a quick task', example: 'Example: Pay utility bill', subtext: '💡 Quick wins keep momentum high.' },
+                    { question: 'Capture a next step', example: `Example: First step for ${goalHint}`, subtext: '💡 Start with the smallest useful action.' },
+                ],
+            },
+            explore: {
+                placeholders: [
+                    { question: 'What do you want help with?', example: 'Example: Plan a productive afternoon', subtext: '💡 We will suggest practical next actions.' },
+                    { question: 'Need task ideas?', example: `Example: Build consistency around ${interestHint}`, subtext: '💡 Explore is optimized for actionable options.' },
+                    { question: 'Try a planning prompt', example: 'Example: Give me 4 low-effort wins', subtext: '💡 Pick suggestions and schedule instantly.' },
+                ],
+                pills: [
+                    { emoji: '⚡', label: 'Quick Wins' },
+                    { emoji: '🧭', label: 'Plan Today' },
+                    { emoji: '🗂️', label: 'Clear Backlog' },
+                    { emoji: '🏃', label: 'Energy Reset' },
+                    { emoji: '✅', label: 'One Important Task' },
+                ],
+            },
+            project: {
+                placeholders: [
+                    { question: 'What project do you want to start?', example: `Example: Launch ${goalHint}`, subtext: '💡 Start with a 3-step manual scaffold.' },
+                    { question: 'Break down a goal', example: 'Example: Organize home office in phases', subtext: '💡 Smaller tasks make progress consistent.' },
+                    { question: 'Define a project outcome', example: 'Example: Finish portfolio refresh this month', subtext: '💡 Clear outcomes improve follow-through.' },
+                ],
+                pills: [
+                    { emoji: '🛠️', label: 'Build Plan' },
+                    { emoji: '📅', label: 'Weekly Milestones' },
+                    { emoji: '🎯', label: 'Outcome First' },
+                    { emoji: '🧱', label: 'Break Into Steps' },
+                    { emoji: '🚀', label: 'Start Small' },
+                ],
+            },
+        };
+    }
+
     const now = new Date();
     const timeOfDay = now.getHours() < 12 ? 'morning' : now.getHours() < 18 ? 'afternoon' : 'evening';
     const dayOfWeek = now.toLocaleDateString('en-US', { weekday: 'long' });
@@ -810,6 +1008,10 @@ Generate highly personalized, creative content for all three sections.`;
 };
 
 export const getInitialExploreSuggestions = async (userProfile: UserProfile): Promise<Suggestion[]> => {
+    if (isNoAIMode()) {
+        return localSuggestions({ userProfile, count: 4, includeProjectStarter: false });
+    }
+
     const { suggestionDescriptionWordLimit } = getCurrentAIQualityModeConfig();
     const system = `You are an AI assistant for a task management app generating "explore" suggestions.
 ${SUGGESTION_SCHEMA}
@@ -846,6 +1048,10 @@ export const getDynamicSuggestions = async (options: {
     filters?: { duration?: string | null; categories?: string[] };
 }): Promise<Suggestion[]> => {
     const { prompt, userProfile, count, filters } = options;
+    if (isNoAIMode()) {
+        return localSuggestions({ userProfile, prompt, count, includeProjectStarter: /project|plan|goal|build|launch/i.test(prompt) });
+    }
+
     const { suggestionDescriptionWordLimit } = getCurrentAIQualityModeConfig();
     const now = new Date();
     const futureDate1 = new Date(now); futureDate1.setDate(futureDate1.getDate() + 2);
@@ -888,6 +1094,11 @@ INSTRUCTIONS:
 
 export const getParsingSubtext = async (taskInput: string, userProfile: UserProfile): Promise<string> => {
     if (!taskInput || taskInput.trim().length < 4) return '';
+    if (isNoAIMode()) {
+        if (/[,\n]| and /i.test(taskInput)) return '💡 Tip: This looks like multiple tasks; split and confirm each one.';
+        if (/every|daily|weekly|monthly/i.test(taskInput)) return '💡 Tip: Add recurrence in the task editor after creating this task.';
+        return '';
+    }
 
     const system = `You are an AI assistant analyzing task input for a task management app.
 Output a JSON object: { "subtext": string }
@@ -914,6 +1125,14 @@ Generate a two-part subtext: what the app will do + how to change it. Return JSO
 };
 
 export const getQuestTaskAlternate = async (quest: Quest, taskToReplace: Task, allQuestTasks: Task[]): Promise<Suggestion | null> => {
+    if (isNoAIMode()) {
+        return {
+            ...localEnrichedTask(`Alternative step for ${quest.name}: ${taskToReplace.title}`, taskToReplace.category || 'Productivity', taskToReplace.duration_min || 20),
+            reasoning: 'Keep momentum',
+            context_tag: 'Manual fallback',
+        };
+    }
+
     const system = `You are an AI assistant for a task management app. Generate one alternative task for a quest.
 ${SUGGESTION_SCHEMA}
 Output a single JSON object (not an array).`;
@@ -936,6 +1155,15 @@ Generate ONE creative alternative task that helps achieve the quest goal but is 
 
 export const enrichTaskWithAI = async (taskInput: string, userProfile: UserProfile): Promise<EnrichedTaskData[]> => {
     const now = new Date();
+    if (isNoAIMode()) {
+        const chunks = taskInput
+            .split(/\n|,/)
+            .map(s => s.trim())
+            .filter(Boolean);
+        const parts = chunks.length > 1 ? chunks : taskInput.split(/\band\b/i).map(s => s.trim()).filter(Boolean);
+        const taskParts = (parts.length > 0 ? parts : [taskInput]).slice(0, 5);
+        return taskParts.map(part => localEnrichedTask(part, 'Productivity', 15, taskInput));
+    }
 
     const system = `You are an AI assistant enriching task input with structured data.
 ${ENRICHED_TASK_SCHEMA}
@@ -980,6 +1208,10 @@ INSTRUCTIONS:
 };
 
 export const createQuestFromGoal = async (goal: string, userProfile: UserProfile): Promise<{ name: string; narrative: string; tasks: EnrichedTaskData[] }> => {
+    if (isNoAIMode()) {
+        return localProjectScaffold(goal);
+    }
+
     const now = new Date();
     const futureDate1 = new Date(now); futureDate1.setDate(futureDate1.getDate() + 3);
     const futureDate2 = new Date(now); futureDate2.setDate(futureDate2.getDate() + 7);
@@ -1021,6 +1253,10 @@ export const getSuggestions = async (options: {
     categories?: string[];
 }, thinkingBudget?: number): Promise<Suggestion[]> => {
     const { userProfile, tasks, quests, feedback, categoryFocus, count, mode, ...filters } = options;
+    if (isNoAIMode()) {
+        return localSuggestions({ userProfile, count, includeProjectStarter: true });
+    }
+
     const {
         suggestionDescriptionWordLimit,
         taskContextLimit,
@@ -1092,6 +1328,23 @@ export const getInContextSuggestion = async (context: {
     groupBy: string;
 }): Promise<Suggestion | null> => {
     const { taskAbove, taskBelow, tasksForDay } = context;
+    if (isNoAIMode()) {
+        if (taskBelow) {
+            return {
+                ...localEnrichedTask(`Prep: ${taskBelow.title}`, taskBelow.category || 'Productivity', 10),
+                reasoning: 'Smooth transition',
+                context_tag: 'Manual insert',
+            };
+        }
+        if (taskAbove) {
+            return {
+                ...localEnrichedTask(`Follow up: ${taskAbove.title}`, taskAbove.category || 'Productivity', 12),
+                reasoning: 'Next action',
+                context_tag: 'Manual insert',
+            };
+        }
+        return null;
+    }
 
     let insertionContext = '';
     if (taskAbove && taskBelow) {
@@ -1124,6 +1377,9 @@ Generate ONE task that logically fits this position. reasoning must explain the 
 };
 
 export const synthesizeAIInsights = async (userProfile: UserProfile, tasks: Task[]): Promise<AIInsight[]> => {
+    if (isNoAIMode()) {
+        return [];
+    }
     const completedTasks = tasks.filter(t => t.completed_at).slice(-20);
     if (completedTasks.length < 5) return [];
 
@@ -1154,6 +1410,10 @@ Find 1-2 novel, non-obvious insights. Observations only — no advice.`;
 };
 
 export const synthesizeUserProfileIntoPersona = async (userProfile: UserProfile, correctiveFeedback?: string): Promise<AIPersonaSummary | null> => {
+    if (isNoAIMode()) {
+        return localPersonaSummary(userProfile);
+    }
+
     const system = `You are an AI synthesizing a user profile into a persona summary.
 Output a single JSON object:
 {
@@ -1196,6 +1456,15 @@ export const getNewClarificationQuestion = async (
     existingQuestions: { question: string }[],
     options?: { category?: string; excludedCategories?: string[] }
 ): Promise<Partial<ClarificationQuestion> | null> => {
+    if (isNoAIMode()) {
+        return {
+            category: 'Planning',
+            question: 'Which task size keeps you most consistent?',
+            exampleAnswer: '20-30 minute tasks with clear finish lines.',
+            options: ['5-10 min', '20-30 min', '45-60 min', 'Mixed'],
+        };
+    }
+
     const system = `You are an AI generating a clarification question to better understand a user's preferences.
 Output a single JSON object: { category: string, question: string, exampleAnswer: string, options: string[] }
 options should be 3-4 short, clickable answer suggestions.`;
@@ -1229,6 +1498,10 @@ export const getNewQuestionOptions = async (
     question: string,
     existingOptions: string[]
 ): Promise<string[] | null> => {
+    if (isNoAIMode()) {
+        return ['Morning', 'Afternoon', 'Evening', 'Varies'];
+    }
+
     const system = `You are an AI generating answer options for a user preference question.
 Output a JSON array of 4 short string options (single words or short phrases).`;
 

@@ -2,7 +2,7 @@ import { THEMES } from '../themes';
 
 export type View = 'today' | 'quests' | 'rewards' | 'explore' | 'settings' | 'journal' | 'you' | 'themeSandbox';
 export type Mode = 'rpg' | 'minimal';
-export type AIQualityMode = 'cost_saver' | 'balanced' | 'high_context';
+export type AIQualityMode = 'cost_saver' | 'balanced' | 'high_context' | 'no_ai';
 export type TimeOfDay = 'morning' | 'day' | 'night';
 export type SortByType = 'manual' | 'title' | 'category' | 'duration' | 'date_and_time';
 export type GroupByType = 'none' | 'category' | 'time_of_day' | 'by_date';

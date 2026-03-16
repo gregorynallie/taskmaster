@@ -42,7 +42,7 @@ export const SettingsView: React.FC = () => {
         value: AIQualityMode;
         label: string;
         description: string;
-        passedToClaude: string;
+        passedToClaude: (currentMode: Mode) => string;
         uxImpact: string;
         costImpact: string;
     }> = [
@@ -50,7 +50,7 @@ export const SettingsView: React.FC = () => {
             value: 'cost_saver',
             label: 'Cost Saver',
             description: 'Smallest context and response budgets.',
-            passedToClaude: 'Top 20 tasks, top 8 quests, last 5 feedback items, 6 daily suggestions, 5 Explore suggestions.',
+            passedToClaude: (currentMode) => `Top 20 tasks, top 8 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 5 feedback items, 6 daily suggestions, 5 Explore suggestions.`,
             uxImpact: 'Fastest responses with concise suggestions.',
             costImpact: 'Lowest token usage.',
         },
@@ -58,7 +58,7 @@ export const SettingsView: React.FC = () => {
             value: 'balanced',
             label: 'Balanced',
             description: 'More context for better relevance.',
-            passedToClaude: 'Top 35 tasks, top 12 quests, last 8 feedback items, 8 daily suggestions, 6 Explore suggestions.',
+            passedToClaude: (currentMode) => `Top 35 tasks, top 12 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 8 feedback items, 8 daily suggestions, 6 Explore suggestions.`,
             uxImpact: 'Better personalization with moderate latency.',
             costImpact: 'Medium token usage.',
         },
@@ -66,9 +66,17 @@ export const SettingsView: React.FC = () => {
             value: 'high_context',
             label: 'High Context',
             description: 'Largest context and richer outputs.',
-            passedToClaude: 'Top 60 tasks, top 20 quests, last 12 feedback items, 10 daily suggestions, 7 Explore suggestions.',
+            passedToClaude: (currentMode) => `Top 60 tasks, top 20 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 12 feedback items, 10 daily suggestions, 7 Explore suggestions.`,
             uxImpact: 'Best depth/coverage for complex planning.',
             costImpact: 'Highest token usage.',
+        },
+        {
+            value: 'no_ai',
+            label: 'No AI',
+            description: 'Manual-first mode with zero Claude calls.',
+            passedToClaude: () => 'Nothing. Claude/gateway calls are blocked and local deterministic fallbacks are used.',
+            uxImpact: 'Fast, stable task manager behavior with local suggestions and project scaffolds.',
+            costImpact: 'No Claude token usage.',
         },
     ];
     const activeAIQualityMode = aiQualityModes.find(m => m.value === aiQualityMode) || aiQualityModes[0];
@@ -330,7 +338,7 @@ export const SettingsView: React.FC = () => {
                                         </div>
                                         <p className="text-sm text-text-secondary mt-1">{option.description}</p>
                                         <p className="text-xs text-text-secondary mt-2">
-                                            <span className="font-semibold text-text-primary">What is passed:</span> {option.passedToClaude}
+                                            <span className="font-semibold text-text-primary">What is passed:</span> {option.passedToClaude(mode)}
                                         </p>
                                         <p className="text-xs text-text-secondary mt-1">
                                             <span className="font-semibold text-text-primary">UX impact:</span> {option.uxImpact}

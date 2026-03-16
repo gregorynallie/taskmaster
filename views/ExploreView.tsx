@@ -257,7 +257,9 @@ export const ExploreView: React.FC = () => {
         <div className="animate-themed-enter max-w-4xl mx-auto">
             <HeroWithInput
                 title="Explore New Tasks"
-                subtitle="Type an idea, goal, or simple task to get AI-powered suggestions."
+                subtitle={aiQualityMode === 'no_ai'
+                    ? 'Type an idea, goal, or simple task to get smart manual suggestions.'
+                    : 'Type an idea, goal, or simple task to get AI-powered suggestions.'}
                 buttonText="Suggest"
                 onSubmit={handleFormSubmit}
                 isSubmitting={isLoading && !!activePrompt} // Only show 'Thinking' on user submit

@@ -245,6 +245,28 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         }
     }, [user, userProfile, playSound, settings.enrichTasksOnCreation]);
 
+    const addTasksBulk = useCallback(async (tasksData: EnrichedTaskData[], date: Date = new Date()): Promise<void> => {
+        if (!user || !tasksData.length) return;
+        playSound('add');
+
+        const tasksRef = collection(db, 'users', user.uid, 'tasks');
+        const batch = writeBatch(db);
+        tasksData.forEach((taskData, index) => {
+            const scheduled_at = determineScheduledAt(taskData, date);
+            const newTask: Omit<Task, 'id'> = {
+                ...taskData,
+                recurring: null,
+                created_at: new Date(Date.now() + index),
+                scheduled_at,
+                completed_at: null,
+                xp_awarded: null,
+            };
+            Object.keys(newTask).forEach(key => newTask[key as keyof typeof newTask] === undefined && delete newTask[key as keyof typeof newTask]);
+            batch.set(doc(tasksRef), newTask);
+        });
+        await batch.commit();
+    }, [user, playSound]);
+
     const updateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
         if (!user) return;
         const taskRef = doc(db, 'users', user.uid, 'tasks', taskId);
@@ -568,6 +590,7 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         quests,
         isLoading,
         addTask,
+        addTasksBulk,
         updateTask,
         completeTask,
         dismissTask,

@@ -79,6 +79,7 @@ export type TasksContextType = {
     projects: Project[];
     quests: Quest[];
     addTask: (taskData: string | Task | EnrichedTaskData, date?: Date, animation?: AnimationInfo) => void;
+    addTasksBulk: (tasksData: EnrichedTaskData[], date?: Date) => Promise<void>;
     completeOnboarding: (answers: OnboardingAnswers, mode: Mode) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     completeTask: (taskId: string) => void;

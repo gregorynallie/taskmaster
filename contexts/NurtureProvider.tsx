@@ -339,6 +339,54 @@ export const NurtureProvider: React.FC<{ children: ReactNode }> = ({ children })
         return body;
     }, [state.petName, currentMood, weeklyCategoryBalance, streakDays, user?.displayName, user?.email, hasRecentMilestone]);
 
+    const setupPet = useCallback((name: string) => {
+        setState(prev => ({ ...prev, petName: name.trim() || 'Mochi', setupComplete: true }));
+    }, []);
+
+    const setMoodOverride = useCallback((mood: NurtureMood | null) => {
+        setState(prev => ({ ...prev, moodOverride: mood }));
+    }, []);
+
+    const setTimeOverride = useCallback((time: NurtureTimeOfDay | null) => {
+        setState(prev => ({ ...prev, timeOverride: time }));
+    }, []);
+
+    const markLettersRead = useCallback(() => {
+        setState(prev => {
+            const hasUnreadFlag = !!prev.unreadLetterId;
+            const hasUnreadItems = prev.letters.some(l => !l.read);
+            if (!hasUnreadFlag && !hasUnreadItems) return prev;
+            return {
+                ...prev,
+                unreadLetterId: null,
+                letters: prev.letters.map(l => (l.read ? l : { ...l, read: true })),
+            };
+        });
+    }, []);
+
+    const clearLetters = useCallback(() => {
+        setState(prev => {
+            if (prev.letters.length === 0 && !prev.unreadLetterId) return prev;
+            return { ...prev, letters: [], unreadLetterId: null };
+        });
+    }, []);
+
+    const grantUnlock = useCallback((key: NurtureUnlockKey) => {
+        setState(prev => {
+            if (prev.unlocks[key]) return prev;
+            return {
+                ...prev,
+                unlocks: { ...prev.unlocks, [key]: true },
+                recentUnlockAt: new Date().toISOString(),
+            };
+        });
+    }, []);
+
+    const resetNurtureState = useCallback(() => {
+        if (!window.confirm('Reset all Nurture state to day one?')) return;
+        setState(defaultState());
+    }, []);
+
     useEffect(() => {
         if (mode !== 'nurture' || !state.setupComplete) return;
         if (noteInFlightRef.current) return;
@@ -371,25 +419,14 @@ export const NurtureProvider: React.FC<{ children: ReactNode }> = ({ children })
         iconTone,
         habitatTimeOfDay,
         nextUnlockHint,
-        setupPet: (name: string) => setState(prev => ({ ...prev, petName: name.trim() || 'Mochi', setupComplete: true })),
-        setMoodOverride: (mood) => setState(prev => ({ ...prev, moodOverride: mood })),
-        setTimeOverride: (time) => setState(prev => ({ ...prev, timeOverride: time })),
-        markLettersRead: () => setState(prev => ({
-            ...prev,
-            unreadLetterId: null,
-            letters: prev.letters.map(l => ({ ...l, read: true })),
-        })),
-        clearLetters: () => setState(prev => ({ ...prev, letters: [], unreadLetterId: null })),
-        grantUnlock: (key) => setState(prev => ({
-            ...prev,
-            unlocks: { ...prev.unlocks, [key]: true },
-            recentUnlockAt: new Date().toISOString(),
-        })),
+        setupPet,
+        setMoodOverride,
+        setTimeOverride,
+        markLettersRead,
+        clearLetters,
+        grantUnlock,
         forceGenerateLetter,
-        resetNurtureState: () => {
-            if (!window.confirm('Reset all Nurture state to day one?')) return;
-            setState(defaultState());
-        },
+        resetNurtureState,
     };
 
     return <NurtureContext.Provider value={value}>{children}</NurtureContext.Provider>;

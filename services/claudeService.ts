@@ -549,6 +549,80 @@ const localProjectScaffold = (goal: string): { name: string; narrative: string; 
     };
 };
 
+const extractExplicitTaskItems = (input: string): string[] => {
+    const raw = input
+        .split(/\n|,/)
+        .map(part => part.trim())
+        .filter(Boolean);
+    const unique = Array.from(new Set(raw));
+    return unique.slice(0, 8);
+};
+
+const oneOffPlanTask = (title: string, category: string, minutes: number, when: Date): EnrichedTaskData => ({
+    ...localEnrichedTask(title, category, minutes, title),
+    recurring: null,
+    scheduled_at: when.toISOString(),
+});
+
+const localDayPlan = (input: string, targetDate: Date, existingTitles: string[]): EnrichedTaskData[] => {
+    const explicit = extractExplicitTaskItems(input);
+    const existingSet = new Set(existingTitles.map(t => t.trim().toLowerCase()));
+    const hours = [9, 11, 14, 16, 19, 20];
+    const tasks: EnrichedTaskData[] = [];
+
+    explicit.forEach((item, idx) => {
+        if (existingSet.has(item.toLowerCase())) return;
+        const when = new Date(targetDate);
+        when.setHours(hours[idx % hours.length], 0, 0, 0);
+        tasks.push(oneOffPlanTask(item, 'Productivity', 20, when));
+    });
+
+    const defaults = [
+        'Review top priorities for the day',
+        'Complete one focused work sprint',
+        'Take a short reset break',
+        'Wrap the day with a quick plan for tomorrow',
+    ];
+    for (let i = 0; tasks.length < 4 && i < defaults.length; i += 1) {
+        const title = defaults[i];
+        if (existingSet.has(title.toLowerCase()) || tasks.some(t => t.title.toLowerCase() === title.toLowerCase())) continue;
+        const when = new Date(targetDate);
+        when.setHours(hours[(tasks.length + i) % hours.length], 0, 0, 0);
+        tasks.push(oneOffPlanTask(title, i === 2 ? 'Health' : 'Productivity', i === 2 ? 15 : 25, when));
+    }
+
+    return tasks.slice(0, 6);
+};
+
+const localWeekPlan = (input: string, weekStart: Date): EnrichedTaskData[] => {
+    const explicit = extractExplicitTaskItems(input);
+    const tasks: EnrichedTaskData[] = [];
+    const categories = ['Productivity', 'Health', 'Fun', 'Social', 'Personal Growth'];
+
+    const pushTask = (title: string, dayOffset: number, minutes: number, category: string) => {
+        const when = new Date(weekStart);
+        when.setDate(weekStart.getDate() + dayOffset);
+        when.setHours(dayOffset % 2 === 0 ? 10 : 18, 0, 0, 0);
+        tasks.push(oneOffPlanTask(title, category, minutes, when));
+    };
+
+    explicit.forEach((item, idx) => pushTask(item, idx % 7, 25, categories[idx % categories.length]));
+
+    const defaults = [
+        'Define the top three outcomes for this week',
+        'Ship one meaningful work milestone',
+        'Schedule one movement or workout block',
+        'Do one social check-in with someone important',
+        'Plan one fun or recovery activity',
+        'Organize one lingering admin task',
+        'Weekly review and next-week prep',
+    ];
+    for (let i = 0; tasks.length < 7 && i < defaults.length; i += 1) {
+        pushTask(defaults[i], (tasks.length + i) % 7, i % 2 === 0 ? 30 : 20, categories[(i + 1) % categories.length]);
+    }
+    return tasks.slice(0, 10);
+};
+
 const localSuggestions = (options: { userProfile: UserProfile; prompt?: string; count: number; includeProjectStarter?: boolean }): Suggestion[] => {
     const { userProfile, prompt = '', count, includeProjectStarter = false } = options;
     const goalSnippet = (userProfile.longTermGoals || prompt || 'your priorities').split(/[.,;\n]/)[0].trim() || 'your priorities';
@@ -1243,6 +1317,126 @@ INSTRUCTIONS:
     } catch (e) {
         console.error('createQuestFromGoal failed, using local fallback:', e);
         return localProjectScaffold(goal);
+    }
+};
+
+export const generatePlanForDay = async (options: {
+    input: string;
+    targetDate: string;
+    existingTasks: Array<{ title: string; scheduled_at?: string; completed?: boolean }>;
+    userProfile: UserProfile;
+}): Promise<EnrichedTaskData[]> => {
+    const { input, targetDate, existingTasks, userProfile } = options;
+    const date = new Date(targetDate);
+    const existingTitles = existingTasks.map(t => t.title).filter(Boolean);
+
+    if (isNoAIMode()) {
+        return localDayPlan(input, date, existingTitles);
+    }
+
+    const system = `You are an AI planning assistant for a task manager.
+Output a JSON array of 3-6 one-off task objects.
+${ENRICHED_TASK_SCHEMA}
+Hard rules:
+- Preserve explicit user tasks verbatim as task titles.
+- Do not duplicate existing task titles for this date.
+- All tasks must be scheduled on targetDate.
+- recurring must be null for every task.
+- Descriptions must be actionable and concise.`;
+
+    const user = `Target date (local): ${date.toISOString()}
+User input: "${input}"
+Existing tasks already scheduled that day:
+${existingTitles.map(t => `- ${t}`).join('\n') || '- none'}
+
+User profile context:
+- Interests: ${userProfile.interests}
+- Long-term goals: ${userProfile.longTermGoals}
+- Daily rhythm: ${userProfile.dailyRhythm}
+- Persona: ${userProfile.aiPersonaSummary?.persona || 'n/a'}
+
+Input interpretation rules:
+1) Intention-style input: expand into a complete day plan.
+2) Task-list-style input: treat explicit items as fixed tasks and include them directly.
+3) Mixed input: keep explicit items and fill remaining slots with supporting tasks.
+Return only JSON array.`;
+
+    try {
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 2200, {
+            feature: 'quest',
+            qualityTier: 'high',
+        });
+        if (!Array.isArray(result) || result.length === 0) {
+            return localDayPlan(input, date, existingTitles);
+        }
+        return result
+            .map(task => ({
+                ...task,
+                recurring: null,
+                scheduled_at: task.scheduled_at || date.toISOString(),
+            }))
+            .slice(0, 6);
+    } catch (e) {
+        console.error('generatePlanForDay failed, using local fallback:', e);
+        return localDayPlan(input, date, existingTitles);
+    }
+};
+
+export const generatePlanForWeek = async (options: {
+    input: string;
+    weekStartDate: string;
+    userProfile: UserProfile;
+}): Promise<EnrichedTaskData[]> => {
+    const { input, weekStartDate, userProfile } = options;
+    const weekStart = new Date(weekStartDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+
+    if (isNoAIMode()) {
+        return localWeekPlan(input, weekStart);
+    }
+
+    const system = `You are an AI planning assistant for a task manager.
+Output a JSON array of 5-10 one-off task objects.
+${ENRICHED_TASK_SCHEMA}
+Hard rules:
+- Preserve explicit user tasks verbatim as task titles.
+- Distribute tasks across the full 7-day range (not front-loaded).
+- recurring must be null for every task.
+- Ensure category variety across life areas.
+- Descriptions must be actionable and concise.`;
+
+    const user = `Week window:
+- Start: ${weekStart.toISOString()}
+- End: ${weekEnd.toISOString()}
+User input: "${input}"
+
+User profile context:
+- Interests: ${userProfile.interests}
+- Long-term goals: ${userProfile.longTermGoals}
+- Daily rhythm: ${userProfile.dailyRhythm}
+- Persona: ${userProfile.aiPersonaSummary?.persona || 'n/a'}
+
+Input interpretation rules:
+1) Intention-style input: expand into a complete weekly plan.
+2) Task-list-style input: include explicit items directly.
+3) Mixed input: keep explicit items and fill remaining slots with supporting tasks.
+Return only JSON array.`;
+
+    try {
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 2600, {
+            feature: 'quest',
+            qualityTier: 'high',
+        });
+        if (!Array.isArray(result) || result.length === 0) {
+            return localWeekPlan(input, weekStart);
+        }
+        return result
+            .map(task => ({ ...task, recurring: null }))
+            .slice(0, 10);
+    } catch (e) {
+        console.error('generatePlanForWeek failed, using local fallback:', e);
+        return localWeekPlan(input, weekStart);
     }
 };
 

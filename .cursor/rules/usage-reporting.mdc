@@ -1,0 +1,12 @@
+---
+description: Report usage/resource visibility in every reply
+alwaysApply: true
+---
+
+# Usage Reporting
+
+- At the end of every assistant response, include a short `Usage` section.
+- Include any usage/resources you can directly observe in-session (for example: notable API/workflow actions run, command count context, or other measurable runtime signals).
+- For requested metrics you cannot directly access (for example: Cursor billing tokens, Claude account billing tokens, external account usage dashboards), explicitly say `Unavailable in-session`.
+- Do not invent or estimate token/billing values when direct telemetry is unavailable.
+- Keep this section concise (3-6 bullets max).

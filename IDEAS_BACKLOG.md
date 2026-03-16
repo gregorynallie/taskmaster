@@ -98,15 +98,21 @@ Priority hint: `(Impact + Core Fit + Confidence) - Effort`
 20. **Tool + gamified independence guardrail**
    - Ensure task manager remains excellent standalone and gamified layer remains optional.
    - Acceptance: minimal-mode usability remains strong with no progression dependency.
+21. **Template onboarding fast-path (no AI call)**
+   - For predefined starter personas/templates, use deterministic canned profile + task sets and skip Claude onboarding generation.
+   - Acceptance: selecting a template loads quickly with zero onboarding AI calls; custom quiz path still uses AI generation.
+22. **Fresh-date rebasing for canned template tasks**
+   - Rebase canned task dates relative to "today" on first-time onboarding so seeded data always looks current.
+   - Acceptance: no stale dates after template selection; ordering/time-of-day intent remains intact.
 
 ### Platform & Quality
-21. **Mobile-first optimization pass**
+23. **Mobile-first optimization pass**
    - Improve touch targets, spacing, animation performance, and layout for mobile.
    - Acceptance: key daily flows are smooth on phone viewport sizes.
-22. **Push notification strategy (phased)**
+24. **Push notification strategy (phased)**
    - Start with reminders/check-ins before advanced contextual nudges.
    - Acceptance: user can configure frequency and disable per reminder type.
-23. **Lightweight UI consistency pass**
+25. **Lightweight UI consistency pass**
    - Standardize category colors, key labels, and control placement across core views.
    - Acceptance: visual semantics stay consistent between Today, Explore, Projects/Plan, and task cards.
 
@@ -120,7 +126,10 @@ Priority hint: `(Impact + Core Fit + Confidence) - Effort`
 - _(empty)_
 
 ## Shipped
-- _(track completed backlog items here once shipped)_
+- Template onboarding fast-path (no AI call) for predefined personas.
+- Fresh-date rebasing for canned template tasks so first-run tasks are current.
+- Explore suggestion guard rail pass: debounce + cooldown + in-flight dedupe + stale-response protection.
+- Explore suggestions local cache with profile/prompt keyed invalidation-friendly structure.
 
 ## Rejected / Deferred
 - _(document why to prevent re-discussing the same idea repeatedly)_

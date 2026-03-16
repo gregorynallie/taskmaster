@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile, UserStats, AIInsight, AIPersonaSummary, Task, Quest, ClarificationQuestion, Persona } from '../types';
 import * as claudeService from '../services/claudeService';
 import { useAuth } from '../contexts/AuthProvider';
@@ -6,6 +6,7 @@ import { db } from '../services/firebase';
 import { doc, onSnapshot, setDoc, updateDoc, getDoc, writeBatch } from 'firebase/firestore';
 import * as gamificationService from '../services/gamificationService';
 import { PREDEFINED_PERSONAS } from '../src/onboardingContent';
+import { getTemplatePersonaSummary } from '../src/templatePersonaSummary';
 import { ACHIEVEMENTS } from '../constants';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -43,6 +44,7 @@ export const useUserProfileManager = () => {
     const [userStats, setUserStats] = useState<UserStats>(initialUserStats);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [levelUpInfo, setLevelUpInfo] = useState<{ previousLevel: number; newLevel: number } | null>(null);
+    const isGeneratingPersonaRef = useRef(false);
 
     const updateUserDoc = useCallback(async (updates: { 'userProfile'?: Partial<UserProfile>; 'userStats'?: Partial<UserStats> }) => {
         if (!user) return;
@@ -141,18 +143,25 @@ export const useUserProfileManager = () => {
     
     const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
         const hasCorePersonaChanged = 'interests' in updates || 'dislikes' in updates || 'longTermGoals' in updates || 'dailyRhythm' in updates;
-        
+        const hasExplicitPersonaSummary = Object.prototype.hasOwnProperty.call(updates, 'aiPersonaSummary');
+        const computedStaleSummary = hasCorePersonaChanged && userProfile.aiPersonaSummary
+            ? { ...userProfile.aiPersonaSummary, status: 'stale' as const }
+            : userProfile.aiPersonaSummary;
+        const nextPersonaSummary = hasExplicitPersonaSummary ? updates.aiPersonaSummary ?? null : computedStaleSummary;
+
         const newProfileState = {
             ...userProfile,
             ...updates,
-            // If a core attribute changes, mark the persona as stale.
-            aiPersonaSummary: hasCorePersonaChanged && userProfile.aiPersonaSummary
-                ? { ...userProfile.aiPersonaSummary, status: 'stale' as const }
-                : userProfile.aiPersonaSummary,
+            aiPersonaSummary: nextPersonaSummary,
         };
+        const updatesToPersist: Partial<UserProfile> = hasExplicitPersonaSummary
+            ? updates
+            : hasCorePersonaChanged
+                ? { ...updates, aiPersonaSummary: computedStaleSummary }
+                : updates;
 
         setUserProfile(newProfileState); // Optimistic update
-        updateUserDoc({ userProfile: updates });
+        updateUserDoc({ userProfile: updatesToPersist });
     }, [userProfile, updateUserDoc]);
 
     const addXp = useCallback((amount: number) => {
@@ -210,13 +219,18 @@ export const useUserProfileManager = () => {
     }, [userProfile, updateUserProfile]);
 
     const generateAndSaveAIPersona = useCallback(async (correctiveFeedback?: string) => {
-        if (userProfile.aiPersonaSummary?.status === 'updating') return;
-        updateUserProfile({ aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'updating' } as AIPersonaSummary });
-        const summary = await claudeService.synthesizeUserProfileIntoPersona(userProfile, correctiveFeedback);
-        if (summary) {
-            updateUserProfile({ aiPersonaSummary: { ...summary, status: 'current' } });
-        } else {
-             updateUserProfile({ aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'stale' } as AIPersonaSummary });
+        if (isGeneratingPersonaRef.current || userProfile.aiPersonaSummary?.status === 'updating') return;
+        isGeneratingPersonaRef.current = true;
+        try {
+            updateUserProfile({ aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'updating' } as AIPersonaSummary });
+            const summary = await claudeService.synthesizeUserProfileIntoPersona(userProfile, correctiveFeedback);
+            if (summary) {
+                updateUserProfile({ aiPersonaSummary: { ...summary, status: 'current' } });
+            } else {
+                updateUserProfile({ aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'stale' } as AIPersonaSummary });
+            }
+        } finally {
+            isGeneratingPersonaRef.current = false;
         }
     }, [userProfile, updateUserProfile]);
     
@@ -317,13 +331,14 @@ export const useUserProfileManager = () => {
     }, [userProfile, updateUserProfile]);
 
     const applyPredefinedPersona = (persona: Persona) => {
+        const templateSummary = getTemplatePersonaSummary(persona);
         updateUserProfile({
             personaId: persona.id,
             interests: persona.interests,
             dislikes: persona.dislikes,
             longTermGoals: persona.longTermGoals,
             dailyRhythm: persona.dailyRhythm,
-            aiPersonaSummary: { ...userProfile.aiPersonaSummary, status: 'stale' } as AIPersonaSummary
+            aiPersonaSummary: templateSummary,
         });
     };
     

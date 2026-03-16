@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 import { useTaskManager } from '../hooks/useTaskManager';
 import { useSuggestions } from '../hooks/useSuggestions';
 import { usePersonaContent } from '../hooks/usePersonaContent';
@@ -17,6 +17,7 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const settingsManager = useSettings();
 
     const { playSound } = useSoundEffects(settingsManager.theme, settingsManager.soundEffectsEnabled);
+    const isGeneratingPersonaRef = useRef(false);
 
     const taskManager = useTaskManager({
         user,
@@ -64,12 +65,25 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, [userProfileManager, taskManager.tasks]);
 
     const generateAndSaveAIPersona = useCallback(async (correctiveFeedback?: string) => {
-        userProfileManager.updateUserProfile({ aiPersonaSummary: { ...userProfileManager.userProfile.aiPersonaSummary, status: 'updating' } as AIPersonaSummary });
-        const summary = await claudeService.synthesizeUserProfileIntoPersona(userProfileManager.userProfile, correctiveFeedback);
-        if (summary) {
-            userProfileManager.updateUserProfile({ aiPersonaSummary: { ...summary, status: 'current' } });
-        } else {
-            userProfileManager.updateUserProfile({ aiPersonaSummary: { ...userProfileManager.userProfile.aiPersonaSummary, status: 'current' } as AIPersonaSummary });
+        const currentSummary = userProfileManager.userProfile.aiPersonaSummary;
+        if (!currentSummary) return;
+        if (isGeneratingPersonaRef.current || currentSummary.status === 'updating') return;
+
+        isGeneratingPersonaRef.current = true;
+        userProfileManager.updateUserProfile({ aiPersonaSummary: { ...currentSummary, status: 'updating' } as AIPersonaSummary });
+        try {
+            const summary = await claudeService.synthesizeUserProfileIntoPersona(userProfileManager.userProfile, correctiveFeedback);
+            if (summary) {
+                userProfileManager.updateUserProfile({ aiPersonaSummary: { ...summary, status: 'current' } });
+            } else {
+                // Exit loading state when AI fails/rate-limits, preserving existing summary.
+                userProfileManager.updateUserProfile({ aiPersonaSummary: { ...currentSummary, status: 'stale' } as AIPersonaSummary });
+            }
+        } catch (error) {
+            console.error('generateAndSaveAIPersona failed in TasksProvider:', error);
+            userProfileManager.updateUserProfile({ aiPersonaSummary: { ...currentSummary, status: 'stale' } as AIPersonaSummary });
+        } finally {
+            isGeneratingPersonaRef.current = false;
         }
     }, [userProfileManager]);
 

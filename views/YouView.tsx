@@ -71,6 +71,7 @@ export const YouView: React.FC = () => {
     const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
     const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
     const personaSelectorRef = useRef<HTMLDivElement>(null);
+    const hasAutoRefreshedPersonaRef = useRef(false);
 
     const personaSummary = userProfile.aiPersonaSummary;
     const personaStatus = personaSummary?.status ?? 'stale';
@@ -95,11 +96,29 @@ export const YouView: React.FC = () => {
     }, [userProfile.interests, userProfile.dislikes, userProfile.longTermGoals, userProfile.dailyRhythm]);
 
     useEffect(() => {
-        // If the persona is stale and we are not editing, trigger a regeneration.
-        if (personaStatus === 'stale' && !isEditingProfile) {
-            generateAndSaveAIPersona();
+        // Auto-regenerate stale persona once per stale cycle to avoid runaway retries.
+        if (personaStatus !== 'stale') {
+            hasAutoRefreshedPersonaRef.current = false;
+            return;
         }
+        if (isEditingProfile || hasAutoRefreshedPersonaRef.current) return;
+        hasAutoRefreshedPersonaRef.current = true;
+        generateAndSaveAIPersona();
     }, [personaStatus, isEditingProfile, generateAndSaveAIPersona]);
+
+    useEffect(() => {
+        if (personaStatus !== 'updating' || !personaSummary) return;
+        // Safety valve: don't let a failed network call keep Persona stuck loading forever.
+        const timeoutId = window.setTimeout(() => {
+            updateUserProfile({
+                aiPersonaSummary: {
+                    ...personaSummary,
+                    status: 'stale',
+                },
+            });
+        }, 12000);
+        return () => window.clearTimeout(timeoutId);
+    }, [personaStatus, personaSummary, updateUserProfile]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

@@ -9,6 +9,8 @@ TaskMaster Backlog:
     ☐ Add smart auto-reposition for recurring tasks on completion (with smooth animation) @high
     ☐ Add pin-to-top tasks section that overrides group/sort/filter ordering @high
   Explore:
+    ✔ Add stronger Explore suggestion trigger guards (debounce, request cooldown, stale-response protection, in-flight dedupe) @high
+    ✔ Add Explore suggestions cache with profile/prompt invalidation-aware keys to reduce repeated AI calls @high
     ☐ Add suggestion type labels and filters (task/recurring/project/plan) @medium
     ☐ Add Explore guidance controls (difficulty, duration, category, free-form direction) @medium
     ☐ Add comfort-zone slider + feedback weighting for suggestion relevance tuning @medium
@@ -20,12 +22,15 @@ TaskMaster Backlog:
     ☐ Decide whether Projects becomes PLAN hub (rename + expand) or PLAN lives alongside Projects @medium
   Onboarding:
     ☐ Add "I don't know, help me with this" self-discovery branch with guided prompts @medium
+    ✔ For predefined guest templates, skip AI starter-task generation and seed deterministic canned persona/tasks with fresh date rebasing @high
   Core Experience:
     ☐ Add 30-60 second daily check-in flow (review + tomorrow plan) @medium
     ☐ Add reward-style personalization controls without changing core task flow @low
     ☐ Audit and enforce task-manager standalone quality independent of gamified layer @medium
   Reliability & Platform:
     ☐ Add AI usage guardrails (rate limits, debounce, and user-facing fallback states) @high
+    ☐ Move AI API calls behind a server endpoint before wider friend testing (no client-exposed API key) @high
+    ☐ Package iOS beta via Capacitor + TestFlight for friend testing before App Store release @high
     ☐ Ensure AI-off/manual-first parity across core flows (no dead ends) @high
     ☐ Run mobile-first optimization pass for core daily workflows @medium
     ☐ Add configurable reminder notifications (phase 1: simple daily check-in) @low

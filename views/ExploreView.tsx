@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTasks } from '../contexts/TasksProvider';
 import { useSettings } from '../contexts/SettingsProvider';
 import { useUserProfile } from '../contexts/UserProfileProvider';
@@ -8,6 +8,27 @@ import { v4 as uuidv4 } from 'uuid';
 import * as claudeService from '../services/claudeService';
 import { HeroWithInput } from '../components/HeroWithInput';
 import { ScheduleSuggestionModal } from '../components/ScheduleSuggestionModal';
+
+const EXPLORE_CACHE_PREFIX = 'taskmaster-explore-suggestions';
+const EXPLORE_CACHE_TTL_MS = 15 * 60 * 1000;
+const FETCH_DEBOUNCE_MS = 650;
+const REQUEST_COOLDOWN_MS = 2500;
+
+type ExploreFetchType = 'initial' | 'dynamic';
+
+const normalizePrompt = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const getProfileFingerprint = (profile: any): string =>
+    JSON.stringify({
+        personaId: profile.personaId || '',
+        interests: profile.interests || '',
+        longTermGoals: profile.longTermGoals || '',
+        dailyRhythm: profile.dailyRhythm || '',
+    });
+
+const buildCacheKey = (fetchType: ExploreFetchType, prompt: string, profileFingerprint: string): string => (
+    `${EXPLORE_CACHE_PREFIX}:${fetchType}:${prompt}:${profileFingerprint}`
+);
 
 export const ExploreView: React.FC = () => {
     const { createProjectFromSuggestion, acceptSuggestion, scheduleSuggestion, exploreSuggestionPills, isExplorePillsLoading } = useTasks();
@@ -21,65 +42,145 @@ export const ExploreView: React.FC = () => {
     const [acceptedSuggestionId, setAcceptedSuggestionId] = useState<string | null>(null);
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [schedulingSuggestion, setSchedulingSuggestion] = useState<Suggestion | null>(null);
+    const [suggestionPool, setSuggestionPool] = useState<Suggestion[]>([]);
+
+    const debounceTimerRef = useRef<number | null>(null);
+    const requestCounterRef = useRef(0);
+    const latestRequestRef = useRef(0);
+    const inFlightRef = useRef<Map<string, Promise<Suggestion[]>>>(new Map());
+    const lastRequestAtRef = useRef<Map<string, number>>(new Map());
+    const profileFingerprint = useMemo(() => getProfileFingerprint(userProfile), [userProfile]);
     
-    // Fetch initial suggestions on mount or when core persona attributes change.
-    useEffect(() => {
-        let isMounted = true;
-        const getInitialSuggestions = async () => {
+    const readCachedSuggestions = useCallback((fetchType: ExploreFetchType, prompt: string): Suggestion[] | null => {
+        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint);
+        try {
+            const raw = localStorage.getItem(cacheKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (Date.now() - parsed.timestamp > EXPLORE_CACHE_TTL_MS) return null;
+            if (!Array.isArray(parsed.suggestions)) return null;
+            return parsed.suggestions;
+        } catch (_) {
+            return null;
+        }
+    }, [profileFingerprint]);
+
+    const writeCachedSuggestions = useCallback((fetchType: ExploreFetchType, prompt: string, suggestionsToCache: Suggestion[]) => {
+        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint);
+        try {
+            localStorage.setItem(
+                cacheKey,
+                JSON.stringify({
+                    timestamp: Date.now(),
+                    suggestions: suggestionsToCache,
+                }),
+            );
+        } catch (_) {
+            // Cache best-effort only.
+        }
+    }, [profileFingerprint]);
+
+    const fetchSuggestionsCore = useCallback(async (fetchType: ExploreFetchType, prompt: string): Promise<Suggestion[]> => {
+        const normalizedPrompt = normalizePrompt(prompt);
+        const requestKey = `${fetchType}:${normalizedPrompt}:${profileFingerprint}`;
+
+        const cached = readCachedSuggestions(fetchType, normalizedPrompt);
+        if (cached && cached.length > 0) return cached;
+
+        const now = Date.now();
+        const lastAt = lastRequestAtRef.current.get(requestKey) ?? 0;
+        const inFlight = inFlightRef.current.get(requestKey);
+        if (inFlight) return inFlight;
+        if (now - lastAt < REQUEST_COOLDOWN_MS) return [];
+
+        const requestPromise = (async () => {
+            if (fetchType === 'dynamic') {
+                const dynamic = await claudeService.getDynamicSuggestions({
+                    prompt,
+                    userProfile,
+                    count: 6,
+                });
+                const withIds = dynamic.map(s => ({ ...s, id: uuidv4() }));
+                writeCachedSuggestions(fetchType, normalizedPrompt, withIds);
+                return withIds;
+            }
+            const initial = await claudeService.getInitialExploreSuggestions(userProfile);
+            const withIds = initial.map(s => ({ ...s, id: uuidv4() }));
+            writeCachedSuggestions(fetchType, normalizedPrompt, withIds);
+            return withIds;
+        })();
+
+        inFlightRef.current.set(requestKey, requestPromise);
+        lastRequestAtRef.current.set(requestKey, now);
+
+        try {
+            return await requestPromise;
+        } finally {
+            inFlightRef.current.delete(requestKey);
+        }
+    }, [profileFingerprint, readCachedSuggestions, userProfile, writeCachedSuggestions]);
+
+    const runFetch = useCallback(async (fetchType: ExploreFetchType, prompt: string, immediate = false) => {
+        if (debounceTimerRef.current) {
+            window.clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
+        const execute = async () => {
+            const requestId = ++requestCounterRef.current;
+            latestRequestRef.current = requestId;
+            setIsTransitioning(true);
             setIsLoading(true);
             setError(null);
+
             try {
-                const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
-                if (isMounted) {
-                    const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
-                    setSuggestions(suggestionsWithIds);
-                }
+                const fetched = await fetchSuggestionsCore(fetchType, prompt);
+                if (latestRequestRef.current !== requestId) return; // stale response
+
+                const nextSuggestions = fetched.slice(0, 4);
+                const nextPool = fetched.slice(4);
+                setSuggestions(nextSuggestions);
+                setSuggestionPool(nextPool);
             } catch (e: any) {
-                if (isMounted) {
-                    setError(e.message || "Failed to generate initial suggestions.");
-                }
+                if (latestRequestRef.current !== requestId) return;
+                setError(e.message || 'Failed to generate suggestions.');
+                setSuggestions([]);
+                setSuggestionPool([]);
             } finally {
-                if (isMounted) {
+                if (latestRequestRef.current === requestId) {
                     setIsLoading(false);
+                    setIsTransitioning(false);
                 }
             }
         };
 
-        getInitialSuggestions();
-        
-        return () => { isMounted = false; };
-    }, [userProfile.personaId, userProfile.interests, userProfile.longTermGoals]);
+        if (immediate) {
+            void execute();
+            return;
+        }
 
+        debounceTimerRef.current = window.setTimeout(() => {
+            void execute();
+        }, FETCH_DEBOUNCE_MS);
+    }, [fetchSuggestionsCore]);
+
+    // Fetch initial suggestions on mount or when core persona attributes change.
+    useEffect(() => {
+        void runFetch('initial', '', true);
+        return () => {
+            if (debounceTimerRef.current) {
+                window.clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, [runFetch, userProfile.personaId, userProfile.interests, userProfile.longTermGoals, userProfile.dailyRhythm]);
 
     const fetchSuggestions = useCallback((currentPrompt: string) => {
-        if (!currentPrompt.trim()) {
-            setSuggestions([]);
-            return;
-        };
-        setActivePrompt(currentPrompt);
+        const normalizedPrompt = currentPrompt.trim();
+        if (!normalizedPrompt) return;
+        setActivePrompt(normalizedPrompt);
         setAcceptedSuggestionId(null);
-        
-        setIsTransitioning(true); // Fade out current suggestions
-        setTimeout(async () => {
-            setIsLoading(true); // Show "Thinking..." loader
-            setSuggestions([]); // Clear the list so only the loader shows
-            try {
-                const fetchedSuggestions = await claudeService.getDynamicSuggestions({
-                    prompt: currentPrompt,
-                    userProfile,
-                    count: 4,
-                });
-                const suggestionsWithIds = fetchedSuggestions.map(s => ({ ...s, id: uuidv4() }));
-                setSuggestions(suggestionsWithIds);
-            } catch (e: any) {
-                setError(e.message || "Failed to generate suggestions.");
-                setSuggestions([]);
-            } finally {
-                setIsLoading(false); // Hide "Thinking..." loader
-                setIsTransitioning(false); // Fade in new suggestions
-            }
-        }, 300); // This duration should match the CSS transition
-    }, [userProfile]);
+        void runFetch('dynamic', normalizedPrompt, false);
+    }, [runFetch]);
 
     const handleFormSubmit = (prompt: string) => {
         fetchSuggestions(prompt);
@@ -89,7 +190,24 @@ export const ExploreView: React.FC = () => {
         fetchSuggestions(pill.label);
     };
 
-    const handleAccept = (suggestionToAccept: Suggestion) => {
+    const fillFromPool = useCallback((index: number): boolean => {
+        let replaced = false;
+        setSuggestionPool(prevPool => {
+            if (prevPool.length === 0) return prevPool;
+            const [replacement, ...remaining] = prevPool;
+            setSuggestions(prev => {
+                if (!prev[index]) return prev;
+                const next = [...prev];
+                next[index] = replacement;
+                return next;
+            });
+            replaced = true;
+            return remaining;
+        });
+        return replaced;
+    }, []);
+
+    const handleAccept = useCallback((suggestionToAccept: Suggestion) => {
         setAcceptedSuggestionId(suggestionToAccept.id!);
 
         if (suggestionToAccept.isProjectStarter) {
@@ -99,45 +217,40 @@ export const ExploreView: React.FC = () => {
             }, 1000);
         } else {
             acceptSuggestion(suggestionToAccept);
-             setTimeout(() => {
-                setActivePrompt('');
+            setTimeout(() => {
                 setAcceptedSuggestionId(null);
-                // After accepting, re-fetch initial suggestions.
-                const getInitialSuggestions = async () => {
-                    const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
-                    const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
-                    setIsTransitioning(true);
-                    setTimeout(() => {
-                        setSuggestions(suggestionsWithIds);
-                        setIsTransitioning(false);
-                    }, 300);
-                };
-                getInitialSuggestions();
-            }, 1000);
+                setSuggestions(prev => prev.filter(s => s.id !== suggestionToAccept.id));
+                if (!fillFromPool(0) && activePrompt) {
+                    void runFetch('dynamic', activePrompt, true);
+                }
+            }, 500);
         }
-    };
+    }, [acceptSuggestion, activePrompt, createProjectFromSuggestion, fillFromPool, runFetch, setCurrentView]);
 
     const handleSchedule = (suggestion: Suggestion | null, date: Date) => {
         if (!suggestion) return;
         setAcceptedSuggestionId(suggestion.id!);
-        scheduleSuggestion(suggestion, date);
+        void scheduleSuggestion(suggestion, date);
         setSchedulingSuggestion(null);
 
         setTimeout(() => {
-            setActivePrompt('');
             setAcceptedSuggestionId(null);
-             const getInitialSuggestions = async () => {
-                const initialApiSuggestions = await claudeService.getInitialExploreSuggestions(userProfile);
-                const suggestionsWithIds = initialApiSuggestions.map(s => ({...s, id: uuidv4() }));
-                setIsTransitioning(true);
-                setTimeout(() => {
-                    setSuggestions(suggestionsWithIds);
-                    setIsTransitioning(false);
-                }, 300);
-            };
-            getInitialSuggestions();
-        }, 1000);
+            setSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+            if (!fillFromPool(0) && activePrompt) {
+                void runFetch('dynamic', activePrompt, true);
+            }
+        }, 500);
     };
+
+    const handleShuffleSuggestion = useCallback((index: number) => {
+        const replaced = fillFromPool(index);
+        if (replaced) return;
+        if (activePrompt) {
+            void runFetch('dynamic', activePrompt, true);
+            return;
+        }
+        void runFetch('initial', '', true);
+    }, [activePrompt, fillFromPool, runFetch]);
     
     return (
         <div className="animate-themed-enter max-w-4xl mx-auto">
@@ -195,7 +308,7 @@ export const ExploreView: React.FC = () => {
                                 suggestion={suggestion}
                                 index={index}
                                 onAccept={() => handleAccept(suggestion)}
-                                onShuffle={() => fetchSuggestions(activePrompt || 'something new')}
+                                onShuffle={() => handleShuffleSuggestion(index)}
                                 acceptButtonText={acceptedSuggestionId === suggestion.id ? 'Done!' : 'Accept'}
                                 isAcceptDisabled={!!acceptedSuggestionId && acceptedSuggestionId !== suggestion.id}
                                 showScheduleButton={true}

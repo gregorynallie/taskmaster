@@ -28,6 +28,8 @@ import {
 import * as claudeService from '../services/claudeService';
 import { dateToYMD, calculateNextOccurrence } from '../utils/dateUtils';
 import { PREDEFINED_PERSONAS } from '../src/onboardingContent';
+import { getTemplateStarterTasks } from '../src/templateStarterTasks';
+import { getTemplatePersonaSummary } from '../src/templatePersonaSummary';
 
 interface TaskManagerProps {
     user: User | null;
@@ -448,6 +450,7 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
                     dislikes: persona.dislikes,
                     longTermGoals: persona.longTermGoals,
                     dailyRhythm: persona.dailyRhythm,
+                    aiPersonaSummary: getTemplatePersonaSummary(persona),
                 };
             }
         } else {
@@ -460,7 +463,10 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         }
         userProfileActions.updateUserProfile(profileUpdate);
 
-        const starterTasks = await claudeService.generateStarterTasksFromOnboarding(answers, mode);
+        // Fast-path predefined personas to avoid onboarding AI latency/cost.
+        const starterTasks = answers.persona
+            ? getTemplateStarterTasks(answers.persona, new Date())
+            : await claudeService.generateStarterTasksFromOnboarding(answers, mode);
 
         if (starterTasks.length > 0) {
             const batch = writeBatch(db);

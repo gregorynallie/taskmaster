@@ -1,6 +1,6 @@
 import { Mode, Theme, View, ViewSettings, SuggestionPill, TimeOfDay, SortByType, GroupByType, SortDirection, AIQualityMode } from './uiTypes';
 import { UserProfile, UserStats, Persona } from './userTypes';
-import { Task, Quest, Suggestion, EnrichedTaskData, FeedbackReason, QuestSuggestionPayload } from './taskTypes';
+import { Task, Project, Quest, Suggestion, EnrichedTaskData, FeedbackReason, ProjectSuggestionPayload, QuestSuggestionPayload } from './taskTypes';
 import { OnboardingAnswers } from './onboardingTypes';
 
 export type AnimationInfo = {
@@ -75,14 +75,17 @@ export type Placeholder = {
 
 export type TasksContextType = {
     tasks: Task[];
+    projects: Project[];
     quests: Quest[];
     addTask: (taskData: string | Task | EnrichedTaskData, date?: Date, animation?: AnimationInfo) => void;
     completeOnboarding: (answers: OnboardingAnswers, mode: Mode) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => void;
     completeTask: (taskId: string) => void;
     dismissTask: (taskId: string) => void;
+    addProject: (goal: string) => Promise<void>;
     addQuest: (goal: string) => Promise<void>;
     createProjectFromSuggestion: (suggestion: Suggestion) => void;
+    shuffleProjectTask: (projectId: string, taskId: string) => Promise<void>;
     shuffleQuestTask: (questId: string, taskId: string) => Promise<void>;
     reorderTasks: (orderedTasks: Task[]) => void;
     moveTask: (taskId: string, direction: 'up' | 'down') => void;
@@ -91,6 +94,7 @@ export type TasksContextType = {
     suggestionsError: string | null;
     fetchDailySuggestions: (prompt?: string) => Promise<void>;
     acceptSuggestion: (suggestion: Suggestion, indexToRemove?: number, animation?: AnimationInfo) => void;
+    createProjectFromSuggestions: (payload: ProjectSuggestionPayload) => void;
     createQuestFromSuggestions: (payload: QuestSuggestionPayload) => void;
     shuffleSingleSuggestion: (indexToReplace: number, feedbackReason?: FeedbackReason) => Promise<void>;
     getInContextSuggestion: (context: any) => Promise<Suggestion | null>;

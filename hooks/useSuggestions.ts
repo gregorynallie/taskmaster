@@ -64,7 +64,7 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, aiQuali
         const now = new Date();
         if (suggestionsLastFetched && (now.getTime() - suggestionsLastFetched.getTime() < CACHE_DURATION_MS)) return;
 
-        const cacheKey = `${SUGGESTIONS_CACHE_KEY_PREFIX}${user.uid}`;
+        const cacheKey = `${SUGGESTIONS_CACHE_KEY_PREFIX}${user.uid}-${aiQualityMode}`;
         try {
             const cached = localStorage.getItem(cacheKey);
             if (cached) {
@@ -171,6 +171,7 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, aiQuali
         acceptSuggestion,
         shuffleSingleSuggestion,
         scheduleSuggestion,
+        createProjectFromSuggestions: createQuestFromSuggestions,
         createQuestFromSuggestions,
     };
 };

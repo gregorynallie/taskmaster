@@ -4,6 +4,7 @@ import { Mode, Placeholder, SuggestionPill } from '../types';
 import * as claudeService from '../services/claudeService';
 import { getRandomGenericSuggestionPills } from '../src/suggestionPills';
 import { getRandomGenericPlaceholder } from '../src/placeholders';
+import { useSettings } from '../contexts/SettingsProvider';
 
 const PERSONA_CACHE_KEY_PREFIX = 'taskmaster-persona-';
 const PERSONA_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -24,6 +25,7 @@ function getProfileFingerprint(profile: any): string {
 }
 
 export const usePersonaContent = ({ user, userProfile, mode }: UsePersonaContentProps) => {
+    const { aiQualityMode } = useSettings();
     const [placeholders, setPlaceholders] = useState<Placeholder[]>([getRandomGenericPlaceholder('task')]);
     const [projectPlaceholders, setProjectPlaceholders] = useState<Placeholder[]>([getRandomGenericPlaceholder('project')]);
     const [explorePlaceholders, setExplorePlaceholders] = useState<Placeholder[]>([getRandomGenericPlaceholder('explore')]);
@@ -39,7 +41,7 @@ export const usePersonaContent = ({ user, userProfile, mode }: UsePersonaContent
         if (!user) return;
 
         let cancelled = false;
-        const cacheKey = `${PERSONA_CACHE_KEY_PREFIX}${user.uid}-${userProfile.personaId}-${mode}`;
+        const cacheKey = `${PERSONA_CACHE_KEY_PREFIX}${user.uid}-${userProfile.personaId}-${mode}-${aiQualityMode}`;
         const fingerprint = getProfileFingerprint(userProfile);
 
         const applyContent = (content: { task: { placeholders: Placeholder[] }; explore: { placeholders: Placeholder[]; pills: SuggestionPill[] }; project: { placeholders: Placeholder[]; pills: SuggestionPill[] } }) => {
@@ -112,7 +114,7 @@ export const usePersonaContent = ({ user, userProfile, mode }: UsePersonaContent
 
         fetchContent();
         return () => { cancelled = true; };
-    }, [user, userProfile.interests, userProfile.dislikes, userProfile.longTermGoals, userProfile.dailyRhythm, userProfile.personaId, mode]);
+    }, [user, userProfile.interests, userProfile.dislikes, userProfile.longTermGoals, userProfile.dailyRhythm, userProfile.personaId, mode, aiQualityMode]);
 
     return {
         placeholders,

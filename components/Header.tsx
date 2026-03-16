@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
 
                     <nav className="hidden md:flex items-center bg-secondary/30 rounded-themed p-1 space-x-1">
                         <NavItem label="Tasks" view="today" currentView={currentView} onNavigate={onNavigate} />
-                        <NavItem label={mode === 'rpg' ? 'Quests' : 'Projects'} view="quests" currentView={currentView} onNavigate={onNavigate} />
+                        <NavItem label="Projects" view="projects" currentView={currentView} onNavigate={onNavigate} />
                         <NavItem label="Rewards" view="rewards" currentView={currentView} onNavigate={onNavigate} hidden={mode === 'minimal'} />
                         <NavItem label="Explore" view="explore" currentView={currentView} onNavigate={onNavigate} />
                         <NavItem label="Persona" view="you" currentView={currentView} onNavigate={onNavigate} hasNotification={hasPendingInsights} />
@@ -164,8 +164,8 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>}
                 />
                  <MobileNavItem 
-                    label={mode === 'rpg' ? 'Quests' : 'Projects'}
-                    view="quests" 
+                    label="Projects"
+                    view="projects" 
                     currentView={currentView} 
                     onNavigate={onNavigate}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 16.382V5.618a1 1 0 00-1.447-.894L15 7m-6 10h6" /></svg>}

@@ -62,8 +62,8 @@ Full iCal-style recurrence: `MINUTELY|HOURLY|DAILY|WEEKLY|MONTHLY|YEARLY` with `
 ## Directory Structure
 ```
 /components   — Reusable UI (TaskCard, QuickAddTask, modals, filters)
-/views        — Page views (TodayView, ExploreView, QuestsView, RewardsView, YouView, SettingsView, JournalView)
-/contexts     — React contexts (Auth, Settings, Tasks, UserProfile, Gamification, TaskMaster, ViewOptions)
+/views        — Page views (TodayView, ExploreView, ProjectsView, RewardsView, YouView, SettingsView, JournalView)
+/contexts     — React contexts (Auth, Settings, Tasks, UserProfile, Gamification, LifeQuest, ViewOptions)
 /hooks        — Business logic hooks (useTaskManager, useUserProfileManager, etc.)
 /services     — claudeService.ts, firebase.ts, gamificationService.ts
 /src/types    — All TypeScript types

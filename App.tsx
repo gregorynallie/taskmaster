@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { TodayView } from './views/TodayView';
-import { QuestsView } from './views/QuestsView';
+import { ProjectsView } from './views/ProjectsView';
 import { RewardsView } from './views/RewardsView';
 import { ExploreView } from './views/ExploreView';
 import { SettingsView } from './views/SettingsView';
@@ -156,7 +156,9 @@ function App() {
   const renderView = () => {
     switch (displayedView) {
       case 'today': return <TodayView isFirstLoadAfterOnboarding={isFirstRender.current && hasOnboarded} />;
-      case 'quests': return <QuestsView />;
+      case 'projects':
+      case 'quests':
+        return <ProjectsView />;
       case 'rewards': return mode === 'rpg' ? <RewardsView /> : <TodayView />;
       case 'explore': return <ExploreView />;
       case 'journal': return <JournalView />;

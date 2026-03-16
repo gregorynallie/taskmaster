@@ -131,7 +131,7 @@ export const SuggestedTaskCard: React.FC<SuggestedTaskCardProps> = React.memo(({
 
     const suggestionTypeLabel = useMemo(() => {
         if (suggestion.isProjectStarter) {
-            return `🚀 Starts a new ${mode === 'rpg' ? 'Quest' : 'Project'}`;
+            return '🚀 Starts a new Project';
         }
         if (suggestion.recurring) {
             return `🔄 ${formatRecurrenceRule(suggestion.recurring, { concise: true })}`;

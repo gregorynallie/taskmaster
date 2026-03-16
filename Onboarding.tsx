@@ -24,7 +24,7 @@ const Step: React.FC<{ title: string; subtitle?: string; children: React.ReactNo
 
 const LoadingView: React.FC = () => {
     const messages = useMemo(() => [
-        "Crafting your starter quests...",
+        "Building your starter tasks...",
         "Analyzing your chosen path...",
         "Uncovering hidden tasks...",
         "Let's get this adventure started!",
@@ -139,7 +139,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
             <div className="fixed inset-0 bg-bkg bg-opacity-95 z-50 flex items-center justify-center animate-themed-enter">
                 <div className="bg-surface p-8 rounded-themed shadow-themed max-w-2xl w-full text-center">
                     <h1 className="text-4xl font-bold text-text-primary mb-2 font-header">Let's Build Your Legend.</h1>
-                    <p className="text-text-secondary mb-6">A great quest starts with a clear path. Answer a few questions to forge a task list that’s uniquely yours.</p>
+                    <p className="text-text-secondary mb-6">A great plan starts with a clear path. Answer a few questions to build a task list that’s uniquely yours.</p>
                     <div className="flex gap-4 mb-8">
                         <button onClick={() => setSelectedMode('minimal')} className={`flex-1 p-4 rounded-themed border-2 transition-all ${selectedMode === 'minimal' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}>
                             <h4 className="font-bold text-text-primary font-header">Minimal Mode</h4>
@@ -147,15 +147,15 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                         </button>
                         <button onClick={() => setSelectedMode('rpg')} className={`flex-1 p-4 rounded-themed border-2 transition-all ${selectedMode === 'rpg' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}>
                             <h4 className="font-bold text-text-primary font-header">Gamified Mode</h4>
-                            <p className="text-sm text-text-secondary">A gamified, fantasy-themed quest log.</p>
+                            <p className="text-sm text-text-secondary">A gamified, fantasy-themed task system.</p>
                         </button>
                     </div>
 
                     <button onClick={() => setStep(1)} className="bg-primary hover:bg-primary-focus text-white font-bold py-3 px-12 rounded-themed transition-themed w-full text-lg">
-                        Start My Quest
+                        Start My Plan
                     </button>
                     <div className="mt-8">
-                        <p className="text-sm text-text-secondary mb-4">...Or choose a pre-forged path to start instantly.</p>
+                        <p className="text-sm text-text-secondary mb-4">...Or choose a prebuilt path to start instantly.</p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {PREDEFINED_PERSONAS.map(p => (
                                 <button key={p.id} onClick={() => handleSelectPersona(p)} className="p-4 bg-secondary/30 hover:bg-secondary/50 rounded-themed transition-themed text-left">
@@ -220,7 +220,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                         )}
                     </Step>
                 ) : (
-                    <Step title="Anything else your quest-giver should know?">
+                    <Step title="Anything else I should know?">
                         <textarea
                             value={finalNotes}
                             onChange={(e) => setFinalNotes(e.target.value)}
@@ -229,7 +229,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             placeholder="e.g., I want to read more non-fiction, but I hate cleaning the kitchen."
                         />
                         <button onClick={handleSubmit} className="mt-8 bg-primary hover:bg-primary-focus text-white font-bold py-3 px-12 rounded-themed transition-themed text-lg">
-                            Forge My Quest Log!
+                            Create My Plan!
                         </button>
                     </Step>
                 )}

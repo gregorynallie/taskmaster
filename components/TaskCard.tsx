@@ -433,7 +433,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({
             <div className="flex-1 min-w-0">
                 {task.questName && (
                     <p className="text-xs font-bold text-primary uppercase tracking-wider mb-1 font-header">
-                        {mode === 'rpg' ? 'Quest' : 'Project'}: {task.questName}
+                        Project: {task.questName}
                     </p>
                 )}
 

@@ -26,8 +26,8 @@ const getProfileFingerprint = (profile: any): string =>
         dailyRhythm: profile.dailyRhythm || '',
     });
 
-const buildCacheKey = (fetchType: ExploreFetchType, prompt: string, profileFingerprint: string): string => (
-    `${EXPLORE_CACHE_PREFIX}:${fetchType}:${prompt}:${profileFingerprint}`
+const buildCacheKey = (fetchType: ExploreFetchType, prompt: string, profileFingerprint: string, aiQualityMode: string): string => (
+    `${EXPLORE_CACHE_PREFIX}:${fetchType}:${prompt}:${profileFingerprint}:${aiQualityMode}`
 );
 
 export const ExploreView: React.FC = () => {
@@ -52,7 +52,7 @@ export const ExploreView: React.FC = () => {
     const profileFingerprint = useMemo(() => getProfileFingerprint(userProfile), [userProfile]);
     
     const readCachedSuggestions = useCallback((fetchType: ExploreFetchType, prompt: string): Suggestion[] | null => {
-        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint);
+        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint, aiQualityMode);
         try {
             const raw = localStorage.getItem(cacheKey);
             if (!raw) return null;
@@ -63,10 +63,10 @@ export const ExploreView: React.FC = () => {
         } catch (_) {
             return null;
         }
-    }, [profileFingerprint]);
+    }, [profileFingerprint, aiQualityMode]);
 
     const writeCachedSuggestions = useCallback((fetchType: ExploreFetchType, prompt: string, suggestionsToCache: Suggestion[]) => {
-        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint);
+        const cacheKey = buildCacheKey(fetchType, prompt, profileFingerprint, aiQualityMode);
         try {
             localStorage.setItem(
                 cacheKey,
@@ -78,11 +78,11 @@ export const ExploreView: React.FC = () => {
         } catch (_) {
             // Cache best-effort only.
         }
-    }, [profileFingerprint]);
+    }, [profileFingerprint, aiQualityMode]);
 
     const fetchSuggestionsCore = useCallback(async (fetchType: ExploreFetchType, prompt: string): Promise<Suggestion[]> => {
         const normalizedPrompt = normalizePrompt(prompt);
-        const requestKey = `${fetchType}:${normalizedPrompt}:${profileFingerprint}`;
+        const requestKey = `${fetchType}:${normalizedPrompt}:${profileFingerprint}:${aiQualityMode}`;
 
         const cached = readCachedSuggestions(fetchType, normalizedPrompt);
         if (cached && cached.length > 0) return cached;
@@ -214,7 +214,7 @@ export const ExploreView: React.FC = () => {
         if (suggestionToAccept.isProjectStarter) {
             createProjectFromSuggestion(suggestionToAccept);
             setTimeout(() => {
-                setCurrentView('quests');
+                setCurrentView('projects');
             }, 1000);
         } else {
             acceptSuggestion(suggestionToAccept);

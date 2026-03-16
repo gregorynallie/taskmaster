@@ -37,6 +37,10 @@ export type Task = EnrichedTaskData & {
     completed_at: Date | null;
     dismissed_at?: Date | null;
     xp_awarded: number | null;
+    // Project-first naming (preferred)
+    projectId?: string;
+    projectName?: string;
+    // Legacy naming kept for compatibility with existing stored data
     questId?: string;
     questName?: string;
     order?: number;
@@ -44,7 +48,7 @@ export type Task = EnrichedTaskData & {
     isSpoofed?: boolean;
 };
 
-export type Quest = {
+export type Project = {
     id: string;
     name: string;
     narrative: string;
@@ -52,6 +56,9 @@ export type Quest = {
     created_at: Date;
     completed_at: Date | null;
 };
+
+// Legacy alias while older code paths are migrated.
+export type Quest = Project;
 
 export type Suggestion = EnrichedTaskData & {
     id?: string;
@@ -75,8 +82,11 @@ export type SuggestionFeedback = {
     timestamp: number;
 };
 
-export type QuestSuggestionPayload = {
+export type ProjectSuggestionPayload = {
     questName: string;
     questNarrative: string;
     suggestions: Suggestion[];
 };
+
+// Legacy alias while older code paths are migrated.
+export type QuestSuggestionPayload = ProjectSuggestionPayload;

@@ -11,7 +11,7 @@ interface QuickAddTaskProps {
 
 export const QuickAddTask: React.FC<QuickAddTaskProps> = React.memo(({ selectedDate }) => {
     const { addTask } = useTasks();
-    const { mode, theme, enrichTasksOnCreation } = useSettings();
+    const { theme, enrichTasksOnCreation } = useSettings();
     const [inputValue, setInputValue] = useState('');
     
     // State for the submission animation flow
@@ -60,7 +60,7 @@ export const QuickAddTask: React.FC<QuickAddTaskProps> = React.memo(({ selectedD
     const animationClasses = addTaskAnimationVariant.classes;
     const currentConfirmClass = uiState === 'confirming' ? animationClasses.confirmEnter : animationClasses.confirmExit;
 
-    const buttonText = mode === 'rpg' ? 'Add Quest' : 'Add Task';
+    const buttonText = 'Add Task';
     const creativeCopy = "Consider it done.";
     const loadingLabel = enrichTasksOnCreation ? 'Enriching...' : 'Adding...';
 

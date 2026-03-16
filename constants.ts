@@ -25,8 +25,8 @@ export const ACHIEVEMENTS: Achievement[] = [
     },
     {
         id: 'ach_first_quest',
-        name: "Quest Giver",
-        description: "Complete your first major quest.",
+        name: "Project Starter",
+        description: "Complete your first project.",
         rewardId: 'reward_002',
         check: (stats: UserStats, tasks: Task[], quests: Quest[]) => quests.filter(q => q.status === 'completed').length >= 1,
     },

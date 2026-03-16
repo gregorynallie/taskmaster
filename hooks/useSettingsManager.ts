@@ -46,6 +46,10 @@ const defaultInitialViewSettings: ViewSettings = {
     focusedDate: null,
 };
 
+const normalizeView = (view: View): View => {
+    return view === 'quests' ? 'projects' : view;
+};
+
 export const useSettingsManager = () => {
     const [mode, setMode] = usePersistentState<Mode>('taskmaster_mode', 'minimal');
     const [theme, setTheme] = usePersistentState<Theme>('taskmaster_theme', 'warm-ember');
@@ -61,11 +65,22 @@ export const useSettingsManager = () => {
     const [shuffleThemesOnLoad, setShuffleThemesOnLoad] = usePersistentState<'off' | 'all' | 'favorites'>('taskmaster_shuffleThemesOnLoad', 'off');
 
     const setCurrentView = (newView: View) => {
-        if (currentView !== 'settings' && newView === 'settings') {
-            setPreviousView(currentView);
+        const normalizedCurrent = normalizeView(currentView);
+        const normalizedNext = normalizeView(newView);
+        if (normalizedCurrent !== 'settings' && normalizedNext === 'settings') {
+            setPreviousView(normalizedCurrent);
         }
-        _setCurrentView(newView);
+        _setCurrentView(normalizedNext);
     };
+
+    useEffect(() => {
+        if (currentView === 'quests') {
+            _setCurrentView('projects');
+        }
+        if (previousView === 'quests') {
+            setPreviousView('projects');
+        }
+    }, [currentView, previousView, _setCurrentView, setPreviousView]);
 
     const resetOnboarding = () => {
         setHasOnboarded(false);
@@ -114,9 +129,9 @@ export const useSettingsManager = () => {
         hasOnboarded,
         setHasOnboarded,
         resetOnboarding,
-        currentView,
+        currentView: normalizeView(currentView),
         setCurrentView,
-        previousView,
+        previousView: normalizeView(previousView),
         soundEffectsEnabled,
         toggleSoundEffects,
         enrichTasksOnCreation,

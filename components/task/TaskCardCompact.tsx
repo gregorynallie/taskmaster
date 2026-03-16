@@ -83,7 +83,7 @@ export const TaskCardCompact: React.FC<TaskCardCompactProps> = ({
             <div className="flex-1 min-w-0">
                 {task.questName && (
                     <p className="text-xs font-bold text-primary uppercase tracking-wider truncate font-header">
-                        {mode === 'rpg' ? 'Quest' : 'Project'}: {task.questName}
+                        Project: {task.questName}
                     </p>
                 )}
                 <p className={`font-bold truncate ${(isCompleted || isCompleting || isDismissing) ? 'line-through text-text-secondary' : 'text-text-primary'}`}>{task.title}</p>

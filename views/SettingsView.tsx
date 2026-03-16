@@ -50,7 +50,7 @@ export const SettingsView: React.FC = () => {
             value: 'cost_saver',
             label: 'Cost Saver',
             description: 'Smallest context and response budgets.',
-            passedToClaude: (currentMode) => `Top 20 tasks, top 8 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 5 feedback items, 6 daily suggestions, 5 Explore suggestions.`,
+            passedToClaude: () => 'Top 20 tasks, top 8 projects, last 5 feedback items, 6 daily suggestions, 5 Explore suggestions.',
             uxImpact: 'Fastest responses with concise suggestions.',
             costImpact: 'Lowest token usage.',
         },
@@ -58,7 +58,7 @@ export const SettingsView: React.FC = () => {
             value: 'balanced',
             label: 'Balanced',
             description: 'More context for better relevance.',
-            passedToClaude: (currentMode) => `Top 35 tasks, top 12 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 8 feedback items, 8 daily suggestions, 6 Explore suggestions.`,
+            passedToClaude: () => 'Top 35 tasks, top 12 projects, last 8 feedback items, 8 daily suggestions, 6 Explore suggestions.',
             uxImpact: 'Better personalization with moderate latency.',
             costImpact: 'Medium token usage.',
         },
@@ -66,7 +66,7 @@ export const SettingsView: React.FC = () => {
             value: 'high_context',
             label: 'High Context',
             description: 'Largest context and richer outputs.',
-            passedToClaude: (currentMode) => `Top 60 tasks, top 20 ${currentMode === 'minimal' ? 'projects' : 'quests'}, last 12 feedback items, 10 daily suggestions, 7 Explore suggestions.`,
+            passedToClaude: () => 'Top 60 tasks, top 20 projects, last 12 feedback items, 10 daily suggestions, 7 Explore suggestions.',
             uxImpact: 'Best depth/coverage for complex planning.',
             costImpact: 'Highest token usage.',
         },
@@ -175,7 +175,7 @@ export const SettingsView: React.FC = () => {
                                 className={`flex-1 p-4 rounded-themed border-2 transition-all ${mode === 'rpg' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}
                             >
                                 <h4 className="font-bold text-text-primary font-header">Gamified Mode</h4>
-                                <p className="text-sm text-text-secondary">A gamified, fantasy-themed interface with XP, levels, and quests.</p>
+                                <p className="text-sm text-text-secondary">A gamified interface with XP, levels, and project progression.</p>
                             </button>
                              <button
                                 onClick={() => handleModeChange('minimal')}

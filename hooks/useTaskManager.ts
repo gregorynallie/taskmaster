@@ -243,7 +243,7 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
             Object.keys(newTask).forEach(key => newTask[key as keyof typeof newTask] === undefined && delete newTask[key as keyof typeof newTask]);
             await addDoc(tasksRef, newTask);
         }
-    }, [user, userProfile, playSound]);
+    }, [user, userProfile, playSound, settings.enrichTasksOnCreation]);
 
     const updateTask = useCallback(async (taskId: string, updates: Partial<Task>) => {
         if (!user) return;
@@ -375,7 +375,44 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
 
     const addQuest = useCallback(async (goal: string) => {
         if (!user) return;
-        const { name, narrative, tasks: questTasks } = await claudeService.createQuestFromGoal(goal, userProfile);
+        let questPlan: { name: string; narrative: string; tasks: EnrichedTaskData[] };
+        try {
+            questPlan = await claudeService.createQuestFromGoal(goal, userProfile);
+        } catch (error) {
+            console.error('addQuest failed to generate project plan, using local fallback:', error);
+            const trimmedGoal = goal.trim() || 'New Project';
+            questPlan = {
+                name: trimmedGoal.length > 48 ? `${trimmedGoal.slice(0, 45)}...` : trimmedGoal,
+                narrative: 'Manual project created while AI generation was unavailable.',
+                tasks: [
+                    {
+                        title: `Define success for: ${trimmedGoal}`,
+                        description: 'Write 2-3 clear success criteria.',
+                        category: 'Productivity',
+                        duration_min: 20,
+                        xp_estimate: 24,
+                        recurring: null,
+                    },
+                    {
+                        title: `Break down ${trimmedGoal} into 3 steps`,
+                        description: 'Create small actionable steps with clear finish lines.',
+                        category: 'Productivity',
+                        duration_min: 25,
+                        xp_estimate: 30,
+                        recurring: null,
+                    },
+                    {
+                        title: `Execute first step for ${trimmedGoal}`,
+                        description: 'Do the smallest meaningful action right now.',
+                        category: 'Productivity',
+                        duration_min: 30,
+                        xp_estimate: 36,
+                        recurring: null,
+                    },
+                ],
+            };
+        }
+        const { name, narrative, tasks: questTasks } = questPlan;
 
         const batch = writeBatch(db);
         const newQuestRef = doc(collection(db, 'users', user.uid, 'quests'));
@@ -390,6 +427,8 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
                 scheduled_at: determineScheduledAt(enrichedData, new Date()),
                 completed_at: null,
                 xp_awarded: null,
+                projectId: newQuestRef.id,
+                projectName: newQuest.name,
                 questId: newQuestRef.id,
                 questName: newQuest.name,
             };
@@ -448,6 +487,8 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
                 scheduled_at: determineScheduledAt(enrichedData, new Date()),
                 completed_at: null,
                 xp_awarded: null,
+                projectId: newQuestRef.id,
+                projectName: newQuest.name,
                 questId: newQuestRef.id,
                 questName: newQuest.name,
             };
@@ -523,6 +564,7 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
 
     return {
         tasks,
+        projects: quests,
         quests,
         isLoading,
         addTask,
@@ -539,7 +581,9 @@ export const useTaskManager = ({ user, userProfile, gamificationActions, setting
         rescheduleTaskForToday,
         reEnrichTask,
         revertTaskToOriginalText,
+        addProject: addQuest,
         addQuest,
+        shuffleProjectTask: shuffleQuestTask,
         shuffleQuestTask,
         createProjectFromSuggestion,
         completeOnboarding,

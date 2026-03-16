@@ -1,6 +1,5 @@
 import React from 'react';
 import { useTasks } from '../contexts/TasksProvider';
-import { useSettings } from '../contexts/SettingsProvider';
 import { TaskCard } from '../components/TaskCard';
 import { Task } from '../types';
 
@@ -20,7 +19,6 @@ const groupTasksByDay = (tasks: Task[]): Record<string, Task[]> => {
 
 export const JournalView: React.FC = () => {
     const { tasks } = useTasks();
-    const { mode } = useSettings();
 
     const completedTasks = tasks
         .filter(task => task.completed_at)
@@ -29,9 +27,9 @@ export const JournalView: React.FC = () => {
     const groupedTasks = groupTasksByDay(completedTasks);
     const sortedDates = Object.keys(groupedTasks).sort().reverse();
     
-    const title = mode === 'rpg' ? 'Quest Journal' : 'Task Log';
-    const subtitle = mode === 'rpg' ? 'A log of your heroic deeds and completed quests.' : 'A log of your completed tasks.';
-    const emptyText = mode === 'rpg' ? 'Your journal is empty. Complete some quests to fill its pages!' : 'Your log is empty. Complete some tasks to see your history.';
+    const title = 'Task Log';
+    const subtitle = 'A log of your completed tasks.';
+    const emptyText = 'Your log is empty. Complete some tasks to see your history.';
 
     return (
         <div className="animate-themed-enter max-w-4xl mx-auto">

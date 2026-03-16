@@ -80,7 +80,7 @@ export const TodayView: React.FC<TodayViewProps> = ({ isFirstLoadAfterOnboarding
         dismissingTaskId, initiateDismissal, updateTask, dismissTask,
     } = useTasks();
 
-    const { mode, theme } = useSettings();
+    const { theme } = useSettings();
 
     const {
         focusedDate, setFocusedDate,
@@ -122,7 +122,7 @@ export const TodayView: React.FC<TodayViewProps> = ({ isFirstLoadAfterOnboarding
         return { tasksForTodayText: `Tasks for ${shortDate}`};
     }, [focusedDate]);
 
-    const emptyDayText = mode === 'rpg' ? "No quests for today. A moment of peace, or a chance to add a new adventure!" : "No tasks for today. Your schedule is clear.";
+    const emptyDayText = "No tasks for today. Your schedule is clear.";
     const emptyAllText = "No active tasks. A clean slate!";
     const isAnyTaskAnimating = !!interaction.draggedId || interaction.isDropping.current || activeAnimations.size > 0 || !!completingTaskId || !!dismissingTaskId || interaction.isListShuffling;
     const completedHeaderTitle = focusedDate ? 'Completed' : 'Completed Today';

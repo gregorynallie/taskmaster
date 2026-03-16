@@ -1235,10 +1235,15 @@ INSTRUCTIONS:
 5. Each description must provide actual useful content — steps, tips, or resource links. No vague descriptions.
 6. Keep output concise and avoid unnecessary prose.`;
 
-    return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 2200, {
-        feature: 'quest',
-        qualityTier: 'high',
-    });
+    try {
+        return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 2200, {
+            feature: 'quest',
+            qualityTier: 'high',
+        });
+    } catch (e) {
+        console.error('createQuestFromGoal failed, using local fallback:', e);
+        return localProjectScaffold(goal);
+    }
 };
 
 export const getSuggestions = async (options: {

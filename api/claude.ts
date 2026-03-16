@@ -54,8 +54,8 @@ export default async function handler(req: any, res: any) {
             .filter((block: any) => block.type === 'text')
             .map((block: any) => block.text)
             .join('');
-
-        return res.status(200).json({ content: text });
+        const usage = data.usage || null;
+        return res.status(200).json({ content: text, usage });
     } catch (error: any) {
         return res.status(500).json({ error: error?.message || 'Gateway request failed' });
     }

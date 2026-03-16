@@ -23,6 +23,7 @@ import { ViewOptionsProvider } from './contexts/ViewOptionsProvider';
 import { useAuth } from './contexts/AuthProvider';
 import { LoginScreen } from './components/LoginScreen';
 import { useUserProfile } from './contexts/UserProfileProvider';
+import { AIDebugFloatingStrip } from './components/AIDebugFloatingStrip';
 
 function App() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -31,6 +32,7 @@ function App() {
   const { completeOnboarding } = useTasks();
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isWowModalOpen, setIsWowModalOpen] = useState(false);
+  const [isAIDebugStripVisible, setIsAIDebugStripVisible] = useState(true);
 
   // State for view transitions
   const [animationClass, setAnimationClass] = useState('animate-view-enter-standard');
@@ -195,6 +197,9 @@ function App() {
         onToggleAdmin={() => setIsAdminOpen(!isAdminOpen)}
         onToggleWowModal={() => setIsWowModalOpen(prev => !prev)}
       />
+      {isAIDebugStripVisible && (
+        <AIDebugFloatingStrip onClose={() => setIsAIDebugStripVisible(false)} />
+      )}
       <ViewOptionsProvider>
         <main 
           className={`p-4 sm:p-6 lg:p-8 pb-24 ${animationClass}`}
@@ -203,7 +208,13 @@ function App() {
           {renderView()}
         </main>
       </ViewOptionsProvider>
-      {isAdminOpen && <AdminPanel onClose={() => setIsAdminOpen(false)} />}
+      {isAdminOpen && (
+        <AdminPanel
+          onClose={() => setIsAdminOpen(false)}
+          isAIDebugStripVisible={isAIDebugStripVisible}
+          onToggleAIDebugStrip={() => setIsAIDebugStripVisible(prev => !prev)}
+        />
+      )}
       <WowFeaturesModal isOpen={isWowModalOpen} onClose={() => setIsWowModalOpen(false)} />
     </div>
   );

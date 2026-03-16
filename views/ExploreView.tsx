@@ -32,7 +32,7 @@ const buildCacheKey = (fetchType: ExploreFetchType, prompt: string, profileFinge
 
 export const ExploreView: React.FC = () => {
     const { createProjectFromSuggestion, acceptSuggestion, scheduleSuggestion, exploreSuggestionPills, isExplorePillsLoading } = useTasks();
-    const { setCurrentView } = useSettings();
+    const { setCurrentView, aiQualityMode } = useSettings();
     const { userProfile } = useUserProfile();
     
     const [activePrompt, setActivePrompt] = useState('');
@@ -95,10 +95,11 @@ export const ExploreView: React.FC = () => {
 
         const requestPromise = (async () => {
             if (fetchType === 'dynamic') {
+                const dynamicCount = aiQualityMode === 'high_context' ? 7 : aiQualityMode === 'balanced' ? 6 : 5;
                 const dynamic = await claudeService.getDynamicSuggestions({
                     prompt,
                     userProfile,
-                    count: 6,
+                    count: dynamicCount,
                 });
                 const withIds = dynamic.map(s => ({ ...s, id: uuidv4() }));
                 writeCachedSuggestions(fetchType, normalizedPrompt, withIds);
@@ -118,7 +119,7 @@ export const ExploreView: React.FC = () => {
         } finally {
             inFlightRef.current.delete(requestKey);
         }
-    }, [profileFingerprint, readCachedSuggestions, userProfile, writeCachedSuggestions]);
+    }, [aiQualityMode, profileFingerprint, readCachedSuggestions, userProfile, writeCachedSuggestions]);
 
     const runFetch = useCallback(async (fetchType: ExploreFetchType, prompt: string, immediate = false) => {
         if (debounceTimerRef.current) {

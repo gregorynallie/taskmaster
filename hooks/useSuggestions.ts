@@ -9,6 +9,7 @@ import {
     SuggestionFeedback,
     FeedbackReason,
     Mode,
+    AIQualityMode,
     AnimationInfo,
 } from '../types';
 import * as claudeService from '../services/claudeService';
@@ -45,11 +46,12 @@ interface UseSuggestionsProps {
     quests: Quest[];
     userProfile: any;
     mode: Mode;
+    aiQualityMode: AIQualityMode;
     addTask: (taskData: string | Task | EnrichedTaskData, date?: Date, animation?: AnimationInfo) => Promise<void>;
     playSound: (sound: string) => void;
 }
 
-export const useSuggestions = ({ user, tasks, quests, userProfile, mode, addTask, playSound }: UseSuggestionsProps) => {
+export const useSuggestions = ({ user, tasks, quests, userProfile, mode, aiQualityMode, addTask, playSound }: UseSuggestionsProps) => {
     const [dailySuggestions, setDailySuggestions] = useState<Suggestion[]>([]);
     const [suggestionPool, setSuggestionPool] = useState<Suggestion[]>([]);
     const [isSuggestionsLoading, setIsSuggestionsLoading] = useState(false);
@@ -82,8 +84,9 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, addTask
         setSuggestionsError(null);
         try {
             const budget = tasks.length === 0 ? 0 : undefined;
+            const suggestionCount = aiQualityMode === 'high_context' ? 10 : aiQualityMode === 'balanced' ? 8 : 6;
             const fetched = await claudeService.getSuggestions(
-                { tasks, quests, mode, feedback: suggestionFeedback.slice(-5), categoryFocus: userProfile.categoryFocus, count: 10, userProfile },
+                { tasks, quests, mode, feedback: suggestionFeedback.slice(-5), categoryFocus: userProfile.categoryFocus, count: suggestionCount, userProfile },
                 budget,
             );
             const withIds = fetched.map(s => ({ ...s, id: `sugg-${uuidv4()}` }));
@@ -109,7 +112,7 @@ export const useSuggestions = ({ user, tasks, quests, userProfile, mode, addTask
         } finally {
             setIsSuggestionsLoading(false);
         }
-    }, [user, tasks, quests, mode, userProfile, suggestionFeedback, suggestionsLastFetched]);
+    }, [user, tasks, quests, mode, aiQualityMode, userProfile, suggestionFeedback, suggestionsLastFetched]);
 
     const acceptSuggestion = useCallback((suggestion: Suggestion, indexToRemove?: number, animation?: AnimationInfo) => {
         const { reasoning, context_tag, isLoading, id, isProjectStarter, projectName, questNarrative, subtasks, parentTaskId, parentTaskTitle, ...taskData } = suggestion;

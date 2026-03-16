@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSettings } from '../contexts/SettingsProvider';
-import { Mode, Theme } from '../types';
+import { Mode, Theme, AIQualityMode } from '../types';
 import { groupedThemes, themeCategoryOrder } from '../src/themes';
 import { auth } from '../services/firebase';
 
@@ -8,9 +8,10 @@ export const SettingsView: React.FC = () => {
     const { 
         mode, setMode, theme, setTheme, clearAllData, resetOnboarding, 
         showSpoofedTasks, toggleShowSpoofedTasks, soundEffectsEnabled, toggleSoundEffects,
-        enrichTasksOnCreation, toggleEnrichTasksOnCreation,
+        enrichTasksOnCreation, toggleEnrichTasksOnCreation, aiQualityMode, setAIQualityMode,
         favoriteThemes, toggleFavoriteTheme, shuffleThemesOnLoad, setShuffleThemesOnLoad 
     } = useSettings();
+    const [isAIQualityModalOpen, setIsAIQualityModalOpen] = useState(false);
 
     const handleModeChange = (newMode: Mode) => {
         setMode(newMode);
@@ -36,6 +37,41 @@ export const SettingsView: React.FC = () => {
             <span className="font-semibold text-text-primary">{label}</span>
         </label>
     );
+
+    const aiQualityModes: Array<{
+        value: AIQualityMode;
+        label: string;
+        description: string;
+        passedToClaude: string;
+        uxImpact: string;
+        costImpact: string;
+    }> = [
+        {
+            value: 'cost_saver',
+            label: 'Cost Saver',
+            description: 'Smallest context and response budgets.',
+            passedToClaude: 'Top 20 tasks, top 8 quests, last 5 feedback items, 6 daily suggestions, 5 Explore suggestions.',
+            uxImpact: 'Fastest responses with concise suggestions.',
+            costImpact: 'Lowest token usage.',
+        },
+        {
+            value: 'balanced',
+            label: 'Balanced',
+            description: 'More context for better relevance.',
+            passedToClaude: 'Top 35 tasks, top 12 quests, last 8 feedback items, 8 daily suggestions, 6 Explore suggestions.',
+            uxImpact: 'Better personalization with moderate latency.',
+            costImpact: 'Medium token usage.',
+        },
+        {
+            value: 'high_context',
+            label: 'High Context',
+            description: 'Largest context and richer outputs.',
+            passedToClaude: 'Top 60 tasks, top 20 quests, last 12 feedback items, 10 daily suggestions, 7 Explore suggestions.',
+            uxImpact: 'Best depth/coverage for complex planning.',
+            costImpact: 'Highest token usage.',
+        },
+    ];
+    const activeAIQualityMode = aiQualityModes.find(m => m.value === aiQualityMode) || aiQualityModes[0];
 
     return (
         <div className="animate-themed-enter max-w-2xl mx-auto">
@@ -189,6 +225,20 @@ export const SettingsView: React.FC = () => {
                                 />
                             </button>
                         </div>
+                        {/* AI Quality Mode */}
+                        <div className="p-4 bg-secondary/30 rounded-themed space-y-3">
+                            <div>
+                                <p className="text-text-primary font-medium">AI Quality Mode</p>
+                                <p className="text-sm text-text-secondary font-normal">Controls Claude context depth and output budget for suggestions/plans.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAIQualityModalOpen(true)}
+                                className="w-full text-left p-3 bg-secondary/50 hover:bg-secondary rounded-themed transition-themed border border-transparent hover:border-primary"
+                            >
+                                <p className="font-semibold text-text-primary">{activeAIQualityMode.label}</p>
+                                <p className="text-xs text-text-secondary mt-1">{activeAIQualityMode.description}</p>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -234,6 +284,67 @@ export const SettingsView: React.FC = () => {
                 </div>
 
             </div>
+
+            {isAIQualityModalOpen && (
+                <div
+                    className="fixed inset-0 bg-black/60 z-40 flex items-center justify-center p-4 animate-themed-enter"
+                    onClick={() => setIsAIQualityModalOpen(false)}
+                >
+                    <div
+                        className="bg-surface rounded-themed shadow-themed border border-secondary max-w-2xl w-full max-h-[85vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="AI Quality Mode options"
+                    >
+                        <div className="p-5 border-b border-secondary flex items-center justify-between">
+                            <div>
+                                <h3 className="text-xl font-bold text-text-primary font-header">AI Quality Mode</h3>
+                                <p className="text-sm text-text-secondary mt-1">Choose how much context and budget Claude should use.</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAIQualityModalOpen(false)}
+                                className="px-3 py-1.5 rounded-themed bg-secondary/60 hover:bg-secondary text-text-primary text-sm font-semibold"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-3">
+                            {aiQualityModes.map((option) => {
+                                const isActive = aiQualityMode === option.value;
+                                return (
+                                    <button
+                                        key={option.value}
+                                        onClick={() => {
+                                            setAIQualityMode(option.value);
+                                            setIsAIQualityModalOpen(false);
+                                        }}
+                                        className={`w-full text-left p-4 rounded-themed border-2 transition-all ${
+                                            isActive ? 'border-accent bg-primary/10' : 'border-secondary/60 hover:border-primary'
+                                        }`}
+                                    >
+                                        <div className="flex items-center justify-between gap-4">
+                                            <p className="font-semibold text-text-primary">{option.label}</p>
+                                            {isActive && <span className="text-xs font-semibold text-accent">Selected</span>}
+                                        </div>
+                                        <p className="text-sm text-text-secondary mt-1">{option.description}</p>
+                                        <p className="text-xs text-text-secondary mt-2">
+                                            <span className="font-semibold text-text-primary">What is passed:</span> {option.passedToClaude}
+                                        </p>
+                                        <p className="text-xs text-text-secondary mt-1">
+                                            <span className="font-semibold text-text-primary">UX impact:</span> {option.uxImpact}
+                                        </p>
+                                        <p className="text-xs text-text-secondary mt-1">
+                                            <span className="font-semibold text-text-primary">Cost impact:</span> {option.costImpact}
+                                        </p>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

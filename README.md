@@ -15,6 +15,8 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
    - Copy `.env.example` to `.env.local`
    - Add your keys: `ANTHROPIC_API_KEY`, `VITE_FIREBASE_API_KEY`
    - Optional Phase-3 gateway mode: set `VITE_AI_GATEWAY_URL=/api/claude` when deploying with the serverless API route in `api/claude.ts`
+   - Optional Phase-4 budget control: set `VITE_AI_SESSION_REQUEST_BUDGET=120` (or your preferred cap) to limit AI calls per browser session
+   - Optional cost estimate tuning: set `VITE_CLAUDE_INPUT_COST_PER_MTOK_USD` and `VITE_CLAUDE_OUTPUT_COST_PER_MTOK_USD` (used for debug-strip estimate only)
    - Never commit `.env.local` (it’s gitignored)
 
 3. **Start the app**
@@ -89,3 +91,5 @@ AI-powered task manager with RPG gamification (quests, levels, rewards) and a mi
   - `ANTHROPIC_API_KEY` (server env var, never exposed to browser)
   - `VITE_AI_GATEWAY_URL=/api/claude` (client env var)
 - If `VITE_AI_GATEWAY_URL` is unset, the app falls back to direct browser Claude calls (legacy mode).
+- `VITE_AI_SESSION_REQUEST_BUDGET` (optional) caps AI requests per session to prevent runaway usage.
+- Cost estimate in debug strip is approximate and based on configured per-1M-token rates.

@@ -7,7 +7,11 @@ import { dateToYMD } from '../utils/dateUtils';
 import { getAnimationVariant } from '../utils/animationUtils';
 import { AnimationVariant } from '../src/animations';
 
-export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const AdminPanel: React.FC<{
+    onClose: () => void;
+    isAIDebugStripVisible: boolean;
+    onToggleAIDebugStrip: () => void;
+}> = ({ onClose, isAIDebugStripVisible, onToggleAIDebugStrip }) => {
     const { clearAllData, resetOnboarding, setCurrentView, theme } = useSettings();
     const { unlockAllRewards, addXp, setStreak } = useUserProfile();
     const { addTask } = useTasks();
@@ -64,6 +68,12 @@ export const AdminPanel: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 className="col-span-2 bg-accent/20 text-accent hover:bg-accent/30 text-sm p-2 rounded-themed"
                             >
                                 Open Theme Sandbox
+                            </button>
+                            <button
+                                onClick={onToggleAIDebugStrip}
+                                className="col-span-2 bg-primary/20 text-primary hover:bg-primary/30 text-sm p-2 rounded-themed"
+                            >
+                                {isAIDebugStripVisible ? 'Hide AI Runtime Debug Strip' : 'Show AI Runtime Debug Strip'}
                             </button>
                         </div>
                     </div>

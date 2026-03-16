@@ -31,6 +31,11 @@ TaskMaster Backlog:
   Reliability & Platform:
     ✔ Add AI usage guardrails (global queue, per-feature cooldowns/priorities, 429 backoff, and shared cache fallbacks) @high
     ✔ Implement optional server-side Claude gateway path (`/api/claude`) with client env switch (`VITE_AI_GATEWAY_URL`) @high
+    ✔ Add Phase-4 adaptive AI controls (quality tiers, session request budget cap, and richer runtime telemetry) @high
+    ✔ Add admin-toggle AI runtime floating strip below top navigation (live budget + request telemetry) @medium
+    ✔ Add Claude session token counters + explicit Cursor usage availability note in AI debug strip @medium
+    ✔ Add approximate Claude USD cost estimate in AI debug strip (configurable per-1M token rates) @medium
+    ✔ Add "last AI action" usage snapshot in debug strip (feature/status/tokens/estimated cost) @medium
     ☐ Set up first deployment host (Vercel or equivalent) and configure `ANTHROPIC_API_KEY` + `VITE_AI_GATEWAY_URL=/api/claude` @high
     ☐ Move AI API calls behind a server endpoint before wider friend testing (no client-exposed API key) @high
     ☐ Package iOS beta via Capacitor + TestFlight for friend testing before App Store release @high

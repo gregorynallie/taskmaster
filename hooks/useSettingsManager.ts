@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Mode, Theme, View, ViewSettings } from '../types';
+import { Mode, Theme, View, ViewSettings, AIQualityMode } from '../types';
 import { featuredThemeIds } from '../src/themes';
 import { auth } from '../services/firebase';
 
@@ -54,6 +54,7 @@ export const useSettingsManager = () => {
     const [previousView, setPreviousView] = usePersistentState<View>('taskmaster_previousView', 'today');
     const [soundEffectsEnabled, setSoundEffectsEnabled] = usePersistentState<boolean>('taskmaster_soundEffectsEnabled', true);
     const [enrichTasksOnCreation, setEnrichTasksOnCreation] = usePersistentState<boolean>('taskmaster_enrichTasksOnCreation', false);
+    const [aiQualityMode, setAIQualityMode] = usePersistentState<AIQualityMode>('taskmaster_aiQualityMode', 'cost_saver');
     const [defaultViewSettings, setDefaultViewSettings] = usePersistentState<ViewSettings | undefined>('taskmaster_defaultViewSettings', defaultInitialViewSettings);
     const [showSpoofedTasks, setShowSpoofedTasks] = usePersistentState<boolean>('taskmaster_showSpoofedTasks', true);
     const [favoriteThemes, setFavoriteThemes] = usePersistentState<string[]>('taskmaster_favoriteThemes', featuredThemeIds);
@@ -120,6 +121,8 @@ export const useSettingsManager = () => {
         toggleSoundEffects,
         enrichTasksOnCreation,
         toggleEnrichTasksOnCreation,
+        aiQualityMode,
+        setAIQualityMode,
         defaultViewSettings,
         updateDefaultViewSettings,
         showSpoofedTasks,

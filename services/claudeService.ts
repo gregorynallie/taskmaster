@@ -14,7 +14,7 @@ import {
     QuestSuggestionPayload,
 } from '../src/types/taskTypes';
 import { OnboardingAnswers } from "../src/types/onboardingTypes";
-import { Mode, SuggestionPill, TimeOfDay } from '../src/types/uiTypes';
+import { Mode, SuggestionPill, TimeOfDay, AIQualityMode } from '../src/types/uiTypes';
 import { Placeholder } from '../src/types/contextTypes';
 import { TASK_CATEGORIES } from "../constants";
 import { v4 as uuidv4 } from 'uuid';
@@ -25,6 +25,13 @@ const AI_GATEWAY_URL = (process.env.VITE_AI_GATEWAY_URL || '').trim();
 const AI_CACHE_PREFIX = 'taskmaster_ai_cache:v1:';
 const MAX_CONCURRENT_AI_REQUESTS = 2;
 const MAX_RETRIES = 2;
+const DEFAULT_SESSION_REQUEST_BUDGET = 120;
+const DEFAULT_CLAUDE_INPUT_COST_PER_MTOK_USD = 3;
+const DEFAULT_CLAUDE_OUTPUT_COST_PER_MTOK_USD = 15;
+const PARSE_RETRY_MAX_TOKENS_CAP = 2600;
+const AI_QUALITY_MODE_STORAGE_KEY = 'taskmaster_aiQualityMode';
+
+type AIQualityTier = 'low' | 'standard' | 'high';
 
 type AIFeature =
     | 'general'
@@ -71,6 +78,70 @@ const FEATURE_COOLDOWN_MS: Record<AIFeature, number> = {
     general: 800,
 };
 
+const FEATURE_DEFAULT_TIER: Record<AIFeature, AIQualityTier> = {
+    task_enrich: 'standard',
+    onboarding: 'high',
+    quest: 'high',
+    suggestions: 'standard',
+    explore: 'standard',
+    persona: 'high',
+    clarification: 'low',
+    ui_content: 'standard',
+    insights: 'standard',
+    general: 'standard',
+};
+
+const FEATURE_CRITICAL_WHEN_BUDGET_EXCEEDED: Record<AIFeature, boolean> = {
+    task_enrich: true,
+    onboarding: true,
+    quest: true,
+    suggestions: false,
+    explore: false,
+    persona: false,
+    clarification: false,
+    ui_content: false,
+    insights: false,
+    general: false,
+};
+
+const QUALITY_TIER_TOKEN_CAP: Record<AIQualityTier, number> = {
+    low: 700,
+    standard: 1800,
+    high: 4096,
+};
+
+type AIQualityModeConfig = {
+    tokenMultiplier: number;
+    suggestionDescriptionWordLimit: number;
+    taskContextLimit: number;
+    questContextLimit: number;
+    feedbackContextLimit: number;
+};
+
+const AI_QUALITY_MODE_CONFIG: Record<AIQualityMode, AIQualityModeConfig> = {
+    cost_saver: {
+        tokenMultiplier: 1.0,
+        suggestionDescriptionWordLimit: 24,
+        taskContextLimit: 20,
+        questContextLimit: 8,
+        feedbackContextLimit: 5,
+    },
+    balanced: {
+        tokenMultiplier: 1.3,
+        suggestionDescriptionWordLimit: 32,
+        taskContextLimit: 35,
+        questContextLimit: 12,
+        feedbackContextLimit: 8,
+    },
+    high_context: {
+        tokenMultiplier: 1.8,
+        suggestionDescriptionWordLimit: 40,
+        taskContextLimit: 60,
+        questContextLimit: 20,
+        feedbackContextLimit: 12,
+    },
+};
+
 const queue: RequestTask[] = [];
 let activeRequests = 0;
 const lastStartedAtByFeature = new Map<AIFeature, number>();
@@ -84,6 +155,26 @@ type AIRuntimeStats = {
     rateLimited: number;
     cacheHits: number;
     cacheMisses: number;
+    budgetBlocked: number;
+    qualityTierLow: number;
+    qualityTierStandard: number;
+    qualityTierHigh: number;
+    qualityTierDowngrades: number;
+    claudeInputTokens: number;
+    claudeOutputTokens: number;
+    claudeTotalTokens: number;
+};
+
+type LastAIActionSnapshot = {
+    status: 'success' | 'error' | 'blocked';
+    feature: AIFeature;
+    qualityTier: AIQualityTier;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    estimatedUSD: number;
+    timestamp: number;
+    reason?: string;
 };
 
 const aiRuntimeStats: AIRuntimeStats = {
@@ -95,7 +186,69 @@ const aiRuntimeStats: AIRuntimeStats = {
     rateLimited: 0,
     cacheHits: 0,
     cacheMisses: 0,
+    budgetBlocked: 0,
+    qualityTierLow: 0,
+    qualityTierStandard: 0,
+    qualityTierHigh: 0,
+    qualityTierDowngrades: 0,
+    claudeInputTokens: 0,
+    claudeOutputTokens: 0,
+    claudeTotalTokens: 0,
 };
+
+let lastAIActionSnapshot: LastAIActionSnapshot = {
+    status: 'success',
+    feature: 'general',
+    qualityTier: 'standard',
+    inputTokens: 0,
+    outputTokens: 0,
+    totalTokens: 0,
+    estimatedUSD: 0,
+    timestamp: Date.now(),
+};
+
+const parsePositiveNumber = (raw: string): number | null => {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value <= 0) return null;
+    return Math.floor(value);
+};
+
+const parseNonNegativeNumber = (raw: string): number | null => {
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) return null;
+    return value;
+};
+
+const parseAIQualityMode = (raw: string | null): AIQualityMode => {
+    if (raw === 'balanced' || raw === 'high_context' || raw === 'cost_saver') return raw;
+    return 'cost_saver';
+};
+
+const getCurrentAIQualityMode = (): AIQualityMode => {
+    try {
+        if (typeof window === 'undefined') return 'cost_saver';
+        const raw = window.localStorage.getItem(AI_QUALITY_MODE_STORAGE_KEY);
+        if (!raw) return 'cost_saver';
+        return parseAIQualityMode(JSON.parse(raw));
+    } catch {
+        return 'cost_saver';
+    }
+};
+
+const getCurrentAIQualityModeConfig = (): AIQualityModeConfig => AI_QUALITY_MODE_CONFIG[getCurrentAIQualityMode()];
+
+const applyQualityModeTokenMultiplier = (maxTokens: number): number => {
+    const { tokenMultiplier } = getCurrentAIQualityModeConfig();
+    return Math.max(200, Math.round(maxTokens * tokenMultiplier));
+};
+
+const sessionRequestBudget = parsePositiveNumber(process.env.VITE_AI_SESSION_REQUEST_BUDGET || '')
+    ?? DEFAULT_SESSION_REQUEST_BUDGET;
+let sessionRequestsConsumed = 0;
+const claudeInputCostPerMTokUSD = parseNonNegativeNumber(process.env.VITE_CLAUDE_INPUT_COST_PER_MTOK_USD || '')
+    ?? DEFAULT_CLAUDE_INPUT_COST_PER_MTOK_USD;
+const claudeOutputCostPerMTokUSD = parseNonNegativeNumber(process.env.VITE_CLAUDE_OUTPUT_COST_PER_MTOK_USD || '')
+    ?? DEFAULT_CLAUDE_OUTPUT_COST_PER_MTOK_USD;
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -222,6 +375,135 @@ const stableHash = (value: string): string => {
     return Math.abs(hash).toString(36);
 };
 
+const downgradeTier = (tier: AIQualityTier): AIQualityTier => {
+    if (tier === 'high') return 'standard';
+    if (tier === 'standard') return 'low';
+    return 'low';
+};
+
+const shortPromptHeuristic = (prompt: string): boolean => {
+    const normalized = prompt.trim();
+    if (!normalized) return true;
+    const words = normalized.split(/\s+/).filter(Boolean).length;
+    return normalized.length <= 120 || words <= 20;
+};
+
+const resolveQualityTier = (options: {
+    feature: AIFeature;
+    userPrompt: string;
+    requestedTier?: AIQualityTier;
+}): AIQualityTier => {
+    const { feature, userPrompt, requestedTier } = options;
+    let tier = requestedTier ?? FEATURE_DEFAULT_TIER[feature];
+    if ((feature === 'task_enrich' || feature === 'clarification') && shortPromptHeuristic(userPrompt)) {
+        tier = 'low';
+    }
+    if (queue.length >= 6 && FEATURE_PRIORITY[feature] <= FEATURE_PRIORITY.persona) {
+        const downgraded = downgradeTier(tier);
+        if (downgraded !== tier) {
+            aiRuntimeStats.qualityTierDowngrades += 1;
+            tier = downgraded;
+        }
+    }
+    return tier;
+};
+
+const recordClaudeUsage = (usage: any) => {
+    if (!usage || typeof usage !== 'object') return;
+    const inputTokens = Number(usage.input_tokens ?? 0) || 0;
+    const outputTokens = Number(usage.output_tokens ?? 0) || 0;
+    const cacheReadTokens = Number(usage.cache_read_input_tokens ?? 0) || 0;
+    const cacheCreationTokens = Number(usage.cache_creation_input_tokens ?? 0) || 0;
+    const totalTokens = inputTokens + outputTokens + cacheReadTokens + cacheCreationTokens;
+
+    aiRuntimeStats.claudeInputTokens += inputTokens;
+    aiRuntimeStats.claudeOutputTokens += outputTokens;
+    aiRuntimeStats.claudeTotalTokens += totalTokens;
+    return { inputTokens, outputTokens, totalTokens };
+};
+
+const estimateUSDFromTokens = (inputTokens: number, outputTokens: number): number => {
+    const inputUSD = (inputTokens / 1_000_000) * claudeInputCostPerMTokUSD;
+    const outputUSD = (outputTokens / 1_000_000) * claudeOutputCostPerMTokUSD;
+    return inputUSD + outputUSD;
+};
+
+const setLastAIActionSnapshot = (snapshot: LastAIActionSnapshot) => {
+    lastAIActionSnapshot = snapshot;
+};
+
+const extractJsonCandidate = (raw: string): string => {
+    const startArray = raw.indexOf('[');
+    const startObject = raw.indexOf('{');
+    const starts = [startArray, startObject].filter(i => i >= 0);
+    if (starts.length === 0) return raw;
+    const start = Math.min(...starts);
+    const slice = raw.slice(start);
+    const endArray = slice.lastIndexOf(']');
+    const endObject = slice.lastIndexOf('}');
+    const end = Math.max(endArray, endObject);
+    if (end < 0) return slice;
+    return slice.slice(0, end + 1);
+};
+
+const normalizeJsonCandidate = (candidate: string): string => {
+    let out = '';
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < candidate.length; i += 1) {
+        const ch = candidate[i];
+        if (inString) {
+            if (escaped) {
+                out += ch;
+                escaped = false;
+                continue;
+            }
+            if (ch === '\\') {
+                out += ch;
+                escaped = true;
+                continue;
+            }
+            if (ch === '"') {
+                out += ch;
+                inString = false;
+                continue;
+            }
+            if (ch === '\n' || ch === '\r') {
+                out += '\\n';
+                continue;
+            }
+            out += ch;
+            continue;
+        }
+        if (ch === '"') {
+            inString = true;
+            out += ch;
+            continue;
+        }
+        out += ch;
+    }
+    return out.replace(/,\s*([}\]])/g, '$1');
+};
+
+const parseJsonResilient = <T>(raw: string): T => {
+    const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+    try {
+        return JSON.parse(clean) as T;
+    } catch {
+        // Continue with fallback attempts.
+    }
+
+    const extracted = extractJsonCandidate(clean);
+    try {
+        return JSON.parse(extracted) as T;
+    } catch {
+        // Continue with normalization fallback.
+    }
+
+    const normalized = normalizeJsonCandidate(extracted);
+    return JSON.parse(normalized) as T;
+};
+
 // ---------------------------------------------------------------------------
 // Core API helper
 // ---------------------------------------------------------------------------
@@ -230,11 +512,39 @@ const callClaude = async (
     systemPrompt: string,
     userPrompt: string,
     maxTokens = 1000,
-    feature: AIFeature = 'general'
+    feature: AIFeature = 'general',
+    requestedTier?: AIQualityTier
 ): Promise<string> => {
     return scheduleRequest(feature, async () => {
         let lastError: Error | null = null;
+        const qualityTier = resolveQualityTier({ feature, userPrompt, requestedTier });
+        if (qualityTier === 'low') aiRuntimeStats.qualityTierLow += 1;
+        if (qualityTier === 'standard') aiRuntimeStats.qualityTierStandard += 1;
+        if (qualityTier === 'high') aiRuntimeStats.qualityTierHigh += 1;
+        const qualityModeTokens = applyQualityModeTokenMultiplier(maxTokens);
+        const effectiveMaxTokens = Math.min(qualityModeTokens, QUALITY_TIER_TOKEN_CAP[qualityTier]);
+
         for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+            if (
+                sessionRequestsConsumed >= sessionRequestBudget &&
+                !FEATURE_CRITICAL_WHEN_BUDGET_EXCEEDED[feature]
+            ) {
+                aiRuntimeStats.budgetBlocked += 1;
+                setLastAIActionSnapshot({
+                    status: 'blocked',
+                    feature,
+                    qualityTier,
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    totalTokens: 0,
+                    estimatedUSD: 0,
+                    timestamp: Date.now(),
+                    reason: `Session budget ${sessionRequestBudget} reached`,
+                });
+                throw new Error(`AI session budget exceeded (${sessionRequestBudget} requests).`);
+            }
+            sessionRequestsConsumed += 1;
+
             const usingGateway = !!AI_GATEWAY_URL;
             const response = usingGateway
                 ? await fetch(AI_GATEWAY_URL, {
@@ -244,7 +554,7 @@ const callClaude = async (
                     },
                     body: JSON.stringify({
                         model: CLAUDE_MODEL,
-                        maxTokens,
+                        maxTokens: effectiveMaxTokens,
                         systemPrompt,
                         userPrompt,
                     }),
@@ -259,7 +569,7 @@ const callClaude = async (
                     },
                     body: JSON.stringify({
                         model: CLAUDE_MODEL,
-                        max_tokens: maxTokens,
+                        max_tokens: effectiveMaxTokens,
                         system: systemPrompt,
                         messages: [{ role: 'user', content: userPrompt }],
                     }),
@@ -268,6 +578,18 @@ const callClaude = async (
             if (response.ok) {
                 aiRuntimeStats.succeeded += 1;
                 const data = await response.json();
+                const usage = usingGateway ? (data as any).usage : data.usage;
+                const usageTotals = recordClaudeUsage(usage) || { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
+                setLastAIActionSnapshot({
+                    status: 'success',
+                    feature,
+                    qualityTier,
+                    inputTokens: usageTotals.inputTokens,
+                    outputTokens: usageTotals.outputTokens,
+                    totalTokens: usageTotals.totalTokens,
+                    estimatedUSD: estimateUSDFromTokens(usageTotals.inputTokens, usageTotals.outputTokens),
+                    timestamp: Date.now(),
+                });
                 const text = usingGateway
                     ? String((data as any).content ?? '')
                     : (data.content || [])
@@ -292,10 +614,32 @@ const callClaude = async (
             }
 
             aiRuntimeStats.failed += 1;
+            setLastAIActionSnapshot({
+                status: 'error',
+                feature,
+                qualityTier,
+                inputTokens: 0,
+                outputTokens: 0,
+                totalTokens: 0,
+                estimatedUSD: 0,
+                timestamp: Date.now(),
+                reason: `HTTP ${response.status}`,
+            });
             throw error;
         }
 
         aiRuntimeStats.failed += 1;
+        setLastAIActionSnapshot({
+            status: 'error',
+            feature,
+            qualityTier,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            estimatedUSD: 0,
+            timestamp: Date.now(),
+            reason: 'Unknown Claude API error',
+        });
         throw lastError ?? new Error('Unknown Claude API error');
     });
 };
@@ -304,20 +648,40 @@ const generateJson = async <T>(
     systemPrompt: string,
     userPrompt: string,
     maxTokens = 1000,
-    options?: { feature?: AIFeature; cache?: { key: string; ttlMs: number } }
+    options?: { feature?: AIFeature; qualityTier?: AIQualityTier; cache?: { key: string; ttlMs: number } }
 ): Promise<T> => {
     const fullSystem = `${systemPrompt}\n\nCRITICAL: Your response must be valid JSON only. No markdown fences, no preamble, no explanation — just raw JSON.`;
     return withCache<T>({
         key: options?.cache?.key,
         ttlMs: options?.cache?.ttlMs,
         producer: async () => {
-            const raw = await callClaude(fullSystem, userPrompt, maxTokens, options?.feature ?? 'general');
-            const clean = raw.replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```\s*$/i, '').trim();
+            const feature = options?.feature ?? 'general';
+            const raw = await callClaude(
+                fullSystem,
+                userPrompt,
+                maxTokens,
+                feature,
+                options?.qualityTier
+            );
             try {
-                return JSON.parse(clean) as T;
+                return parseJsonResilient<T>(raw);
             } catch (e) {
-                console.error('JSON parse failed. Raw response:', raw);
-                throw new Error('Failed to parse JSON from Claude response');
+                // Parse failures are frequently caused by truncated JSON.
+                // Retry once at high tier with a larger token budget for robustness.
+                try {
+                    const retryMaxTokens = Math.min(Math.max(maxTokens, 1200), PARSE_RETRY_MAX_TOKENS_CAP);
+                    const retryRaw = await callClaude(
+                        fullSystem,
+                        userPrompt,
+                        retryMaxTokens,
+                        feature,
+                        'high'
+                    );
+                    return parseJsonResilient<T>(retryRaw);
+                } catch {
+                    console.error('JSON parse failed. Raw response:', raw);
+                    throw new Error('Failed to parse JSON from Claude response');
+                }
             }
         },
     });
@@ -349,8 +713,8 @@ Each task object must have:
 const SUGGESTION_SCHEMA = `
 ${ENRICHED_TASK_SCHEMA}
 Additionally each suggestion object must also have:
-- reasoning: string — 2-4 word punchy subtext explaining why suggested
-- context_tag: string — brief tag like "Based on your goal to learn piano"
+- reasoning: string — 1-3 word punchy subtext explaining why suggested
+- context_tag: string — brief tag (max 5 words)
 - isProjectStarter?: boolean
 - projectName?: string
 - questNarrative?: string
@@ -384,7 +748,10 @@ INSTRUCTIONS:
 6. Return a JSON array sorted by scheduled_at ascending.`;
 
     try {
-        const result = await generateJson<EnrichedTaskData[]>(system, user, 4096, { feature: 'onboarding' });
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 4096, {
+            feature: 'onboarding',
+            qualityTier: 'high',
+        });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
         return result;
     } catch (e) {
@@ -421,8 +788,9 @@ Generate highly personalized, creative content for all three sections.`;
 
     try {
         const cacheIdentity = stableHash(`${profileFingerprint(userProfile)}|${mode}|${timeOfDay}|${dayOfWeek}`);
-        const result = await generateJson<any>(system, user, 3000, {
+        const result = await generateJson<any>(system, user, 1200, {
             feature: 'ui_content',
+            qualityTier: 'standard',
             cache: { key: `initial_persona_content:${cacheIdentity}`, ttlMs: 1000 * 60 * 30 },
         });
         // Ensure formatting consistency
@@ -442,6 +810,7 @@ Generate highly personalized, creative content for all three sections.`;
 };
 
 export const getInitialExploreSuggestions = async (userProfile: UserProfile): Promise<Suggestion[]> => {
+    const { suggestionDescriptionWordLimit } = getCurrentAIQualityModeConfig();
     const system = `You are an AI assistant for a task management app generating "explore" suggestions.
 ${SUGGESTION_SCHEMA}
 Output a JSON array of exactly 4 suggestion objects.`;
@@ -452,12 +821,14 @@ Output a JSON array of exactly 4 suggestion objects.`;
 - Long-term Goals: ${userProfile.longTermGoals}
 
 Generate 4 diverse, actionable suggestions from different categories (e.g. Health, Personal Growth, Fun).
-Descriptions must be immediately useful — provide actual content, steps, or links. Max 40 words per description.
-reasoning must be 2-4 words only.`;
+Descriptions must be immediately useful — provide actual content, steps, or links. Max ${suggestionDescriptionWordLimit} words per description.
+Keep suggestions compact. Prefer one-off tasks unless a recurring pattern is clearly valuable.
+reasoning must be 1-3 words only. context_tag max 5 words.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096, {
+        const result = await generateJson<Suggestion[]>(system, user, 1400, {
             feature: 'explore',
+            qualityTier: 'standard',
             cache: { key: `initial_explore:${stableHash(profileFingerprint(userProfile))}`, ttlMs: 1000 * 60 * 20 },
         });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
@@ -475,6 +846,7 @@ export const getDynamicSuggestions = async (options: {
     filters?: { duration?: string | null; categories?: string[] };
 }): Promise<Suggestion[]> => {
     const { prompt, userProfile, count, filters } = options;
+    const { suggestionDescriptionWordLimit } = getCurrentAIQualityModeConfig();
     const now = new Date();
     const futureDate1 = new Date(now); futureDate1.setDate(futureDate1.getDate() + 2);
     const futureDate2 = new Date(now); futureDate2.setDate(futureDate2.getDate() + 7);
@@ -496,13 +868,16 @@ Filters: ${JSON.stringify(filters || {})}
 INSTRUCTIONS:
 1. For large goals: at least one suggestion must be a Project Starter (isProjectStarter: true, with projectName, questNarrative, subtasks).
 2. For habits: at least one suggestion should use the recurring field.
-3. Descriptions must be immediately useful (max 40 words, markdown links OK).
-4. reasoning must be 2-4 words.
+3. Descriptions must be immediately useful (max ${suggestionDescriptionWordLimit} words, markdown links OK).
+4. reasoning must be 1-3 words. context_tag max 5 words.
 5. Subtask scheduled_at values should be spread: first around ${futureDate1.toISOString()}, next around ${futureDate2.toISOString()}.
 6. Apply all filters strictly.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096, { feature: 'explore' });
+        const result = await generateJson<Suggestion[]>(system, user, 1600, {
+            feature: 'explore',
+            qualityTier: 'standard',
+        });
         if (!Array.isArray(result) || result.length === 0) throw new Error('Empty result');
         return result;
     } catch (e) {
@@ -528,6 +903,7 @@ Generate a two-part subtext: what the app will do + how to change it. Return JSO
         const cacheIdentity = stableHash(`${taskInput.trim().toLowerCase()}|${profileFingerprint(userProfile)}`);
         const result = await generateJson<{ subtext: string }>(system, user, 200, {
             feature: 'task_enrich',
+            qualityTier: 'low',
             cache: { key: `parsing_subtext:${cacheIdentity}`, ttlMs: 1000 * 60 * 20 },
         });
         return result.subtext || '';
@@ -549,7 +925,10 @@ Task to replace: "${taskToReplace.title}" — ${taskToReplace.description}
 Generate ONE creative alternative task that helps achieve the quest goal but is different from the original.`;
 
     try {
-        return await generateJson<Suggestion>(system, user, 600, { feature: 'quest' });
+        return await generateJson<Suggestion>(system, user, 600, {
+            feature: 'quest',
+            qualityTier: 'standard',
+        });
     } catch (e) {
         return null;
     }
@@ -588,7 +967,10 @@ INSTRUCTIONS:
     }];
 
     try {
-        const result = await generateJson<EnrichedTaskData[]>(system, user, 3000, { feature: 'task_enrich' });
+        const result = await generateJson<EnrichedTaskData[]>(system, user, 1400, {
+            feature: 'task_enrich',
+            qualityTier: taskInput.trim().length < 40 ? 'low' : 'standard',
+        });
         if (!Array.isArray(result) || result.length === 0) return createFallback();
         return result.map((item: any) => ({ ...item, original_input: taskInput }));
     } catch (e) {
@@ -616,11 +998,15 @@ User's Goal: "${goal}"
 INSTRUCTIONS:
 1. name: concise, inspiring quest name
 2. narrative: 1-2 sentence motivating framing
-3. tasks: 3-7 actionable tasks, the first step schedulable for today
+3. tasks: 3-5 actionable tasks, the first step schedulable for today
 4. Spread scheduled_at: start today, then around ${futureDate1.toISOString()}, then ${futureDate2.toISOString()}
-5. Each description must provide actual useful content — steps, tips, or resource links. No vague descriptions.`;
+5. Each description must provide actual useful content — steps, tips, or resource links. No vague descriptions.
+6. Keep output concise and avoid unnecessary prose.`;
 
-    return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 4096, { feature: 'quest' });
+    return await generateJson<{ name: string; narrative: string; tasks: EnrichedTaskData[] }>(system, user, 2200, {
+        feature: 'quest',
+        qualityTier: 'high',
+    });
 };
 
 export const getSuggestions = async (options: {
@@ -635,6 +1021,26 @@ export const getSuggestions = async (options: {
     categories?: string[];
 }, thinkingBudget?: number): Promise<Suggestion[]> => {
     const { userProfile, tasks, quests, feedback, categoryFocus, count, mode, ...filters } = options;
+    const {
+        suggestionDescriptionWordLimit,
+        taskContextLimit,
+        questContextLimit,
+        feedbackContextLimit,
+    } = getCurrentAIQualityModeConfig();
+    const activeTaskTitles = tasks
+        .filter(t => !t.completed_at)
+        .slice(0, taskContextLimit)
+        .map(t => t.title)
+        .join(', ');
+    const activeQuestNames = quests
+        .filter(q => q.status === 'in_progress')
+        .slice(0, questContextLimit)
+        .map(q => q.name)
+        .join(', ');
+    const recentFeedback = feedback
+        .slice(-feedbackContextLimit)
+        .map(f => `"${f.suggestionTitle}" (reason: ${f.reason})`)
+        .join('; ');
 
     const system = `You are a brilliant AI life coach generating task suggestions.
 ${SUGGESTION_SCHEMA}
@@ -648,9 +1054,9 @@ Output a JSON array of ${count} suggestion objects.`;
 - Persona: ${userProfile.aiPersonaSummary?.persona}
 
 Current Context:
-- Active Tasks: ${tasks.filter(t => !t.completed_at).map(t => t.title).join(', ')}
-- Active Quests: ${quests.filter(q => q.status === 'in_progress').map(q => q.name).join(', ')}
-- Recent rejected suggestions: ${feedback.map(f => `"${f.suggestionTitle}" (reason: ${f.reason})`).join('; ')}
+- Active Tasks (top ${taskContextLimit}): ${activeTaskTitles}
+- Active Quests (top ${questContextLimit}): ${activeQuestNames}
+- Recent rejected suggestions (last ${feedbackContextLimit}): ${recentFeedback}
 - Focus MORE on: ${Object.entries(categoryFocus).filter(([, v]) => v === 'more').map(([k]) => k).join(', ') || 'None'}
 - Focus LESS on: ${Object.entries(categoryFocus).filter(([, v]) => v === 'less').map(([k]) => k).join(', ') || 'None'}
 
@@ -663,10 +1069,14 @@ MANDATES:
 3. SERENDIPITY: Include at least one "discovery" task — something new that expands their horizons.
 4. HOLISTIC BALANCE: Cover the triad: Productivity, Well-being, Play.
 5. HABIT BUILDING: Occasionally suggest recurring tasks — use the recurring field.
-6. reasoning must be 2-4 words. context_tag must be brief.`;
+6. Keep each description under ${suggestionDescriptionWordLimit} words.
+7. reasoning must be 1-3 words. context_tag max 5 words.`;
 
     try {
-        const result = await generateJson<Suggestion[]>(system, user, 4096, { feature: 'suggestions' });
+        const result = await generateJson<Suggestion[]>(system, user, 1600, {
+            feature: 'suggestions',
+            qualityTier: 'standard',
+        });
         if (!Array.isArray(result)) throw new Error('Not an array');
         return result;
     } catch (e) {
@@ -704,7 +1114,10 @@ Other tasks for the day: ${tasksForDay.map(t => t.title).join(', ')}
 Generate ONE task that logically fits this position. reasoning must explain the logical connection in 2-4 words.`;
 
     try {
-        return await generateJson<Suggestion>(system, user, 600, { feature: 'suggestions' });
+        return await generateJson<Suggestion>(system, user, 600, {
+            feature: 'suggestions',
+            qualityTier: 'low',
+        });
     } catch (e) {
         return null;
     }
@@ -733,7 +1146,10 @@ ${userProfile.aiInsights.map(i => `- ${i.insight}`).join('\n')}
 
 Find 1-2 novel, non-obvious insights. Observations only — no advice.`;
 
-    const insights = await generateJson<any[]>(system, user, 600, { feature: 'insights' });
+    const insights = await generateJson<any[]>(system, user, 600, {
+        feature: 'insights',
+        qualityTier: 'low',
+    });
     return insights.map(i => ({ ...i, id: `insight-${uuidv4()}`, status: 'pending' }));
 };
 
@@ -765,6 +1181,7 @@ Generate:
         const cacheIdentity = stableHash(`${profileFingerprint(userProfile)}|${correctiveFeedback || ''}`);
         const result = await generateJson<any>(system, user, 1000, {
             feature: 'persona',
+            qualityTier: 'high',
             cache: { key: `persona_summary:${cacheIdentity}`, ttlMs: 1000 * 60 * 20 },
         });
         const questionsWithIds = result.clarificationQuestions.map((q: any) => ({ ...q, id: `q-${uuidv4()}` }));
@@ -798,7 +1215,10 @@ ${options?.excludedCategories ? `- Must NOT be in categories: ${options.excluded
 Generate one new, open-ended question with clickable options.`;
 
     try {
-        return await generateJson<Partial<ClarificationQuestion>>(system, user, 400, { feature: 'clarification' });
+        return await generateJson<Partial<ClarificationQuestion>>(system, user, 400, {
+            feature: 'clarification',
+            qualityTier: 'low',
+        });
     } catch (e) {
         return null;
     }
@@ -822,10 +1242,36 @@ Options to avoid: ${existingOptions.join(', ')}
 Generate 4 new, diverse, clickable answer options.`;
 
     try {
-        return await generateJson<string[]>(system, user, 200, { feature: 'clarification' });
+        return await generateJson<string[]>(system, user, 200, {
+            feature: 'clarification',
+            qualityTier: 'low',
+        });
     } catch (e) {
         return null;
     }
 };
 
 export const getAIRuntimeStats = (): AIRuntimeStats => ({ ...aiRuntimeStats });
+export const getAIBudgetSnapshot = () => ({
+    sessionRequestBudget,
+    sessionRequestsConsumed,
+    remaining: Math.max(0, sessionRequestBudget - sessionRequestsConsumed),
+    queueDepth: queue.length,
+    activeRequests,
+});
+
+export const getLastAIActionSnapshot = (): LastAIActionSnapshot => ({ ...lastAIActionSnapshot });
+
+export const getClaudeCostEstimateSnapshot = () => {
+    const estimatedInputUSD = (aiRuntimeStats.claudeInputTokens / 1_000_000) * claudeInputCostPerMTokUSD;
+    const estimatedOutputUSD = (aiRuntimeStats.claudeOutputTokens / 1_000_000) * claudeOutputCostPerMTokUSD;
+    const estimatedTotalUSD = estimatedInputUSD + estimatedOutputUSD;
+    return {
+        model: CLAUDE_MODEL,
+        inputCostPerMTokUSD: claudeInputCostPerMTokUSD,
+        outputCostPerMTokUSD: claudeOutputCostPerMTokUSD,
+        estimatedInputUSD,
+        estimatedOutputUSD,
+        estimatedTotalUSD,
+    };
+};

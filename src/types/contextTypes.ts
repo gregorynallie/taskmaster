@@ -1,4 +1,4 @@
-import { Mode, Theme, View, ViewSettings, SuggestionPill, TimeOfDay, SortByType, GroupByType, SortDirection } from './uiTypes';
+import { Mode, Theme, View, ViewSettings, SuggestionPill, TimeOfDay, SortByType, GroupByType, SortDirection, AIQualityMode } from './uiTypes';
 import { UserProfile, UserStats, Persona } from './userTypes';
 import { Task, Quest, Suggestion, EnrichedTaskData, FeedbackReason, QuestSuggestionPayload } from './taskTypes';
 import { OnboardingAnswers } from './onboardingTypes';
@@ -24,6 +24,8 @@ export type SettingsContextType = {
     toggleSoundEffects: () => void;
     enrichTasksOnCreation: boolean;
     toggleEnrichTasksOnCreation: () => void;
+    aiQualityMode: AIQualityMode;
+    setAIQualityMode: (mode: AIQualityMode) => void;
     defaultViewSettings?: ViewSettings;
     updateDefaultViewSettings: (settings: ViewSettings) => void;
     showSpoofedTasks: boolean;

@@ -42,6 +42,7 @@ export const TasksProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         quests: taskManager.quests,
         userProfile: userProfileManager.userProfile,
         mode: settingsManager.mode,
+        aiQualityMode: settingsManager.aiQualityMode,
         addTask: taskManager.addTask,
         playSound,
     });

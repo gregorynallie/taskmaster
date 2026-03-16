@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useSettings } from '../contexts/SettingsProvider';
 import { useUserProfile } from '../contexts/UserProfileProvider';
 import { View } from '../types';
 import { LEVEL_XP_BASE, LEVEL_XP_GROWTH } from '../constants';
 import { THEMES } from '../src/themes';
 import { getAnimationVariant } from '../utils/animationUtils';
+import { useNurture } from '../contexts/NurtureProvider';
 
 interface HeaderProps {
     currentView: View;
@@ -68,7 +69,8 @@ const MobileNavItem: React.FC<{
 
 export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggleAdmin, onToggleWowModal }) => {
     const { userStats, hasPendingInsights } = useUserProfile();
-    const { mode, theme, previousView } = useSettings();
+    const { mode, theme, previousView, nurturePreviousView } = useSettings();
+    const { iconTone, hasUnreadLetter, hasRecentMilestone } = useNurture();
     const { xp, level } = userStats;
 
     const themeName = THEMES[theme]?.name || 'TaskMaster';
@@ -108,6 +110,15 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
         onToggleWowModal();
     };
 
+    const handleNurtureIconClick = () => {
+        if (mode !== 'nurture') return;
+        if (currentView === 'nurture') {
+            onNavigate(nurturePreviousView || 'today');
+            return;
+        }
+        onNavigate('nurture');
+    };
+
     return (
         <>
             <header className="bg-bkg/80 backdrop-blur-sm sticky top-0 z-30 p-4 mb-8">
@@ -119,7 +130,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
                     <nav className="hidden md:flex items-center bg-secondary/30 rounded-themed p-1 space-x-1">
                         <NavItem label="Tasks" view="today" currentView={currentView} onNavigate={onNavigate} />
                         <NavItem label="Projects" view="projects" currentView={currentView} onNavigate={onNavigate} />
-                        <NavItem label="Rewards" view="rewards" currentView={currentView} onNavigate={onNavigate} hidden={mode === 'minimal'} />
+                        <NavItem label="Rewards" view="rewards" currentView={currentView} onNavigate={onNavigate} hidden={mode !== 'rpg'} />
                         <NavItem label="Explore" view="explore" currentView={currentView} onNavigate={onNavigate} />
                         <NavItem label="Persona" view="you" currentView={currentView} onNavigate={onNavigate} hasNotification={hasPendingInsights} />
                     </nav>
@@ -140,6 +151,25 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
                                     <p className="text-xs text-text-secondary text-center mt-1">{Math.floor(xpProgressInThisLevel)} / {xpNeededForThisLevel} XP</p>
                                 </div>
                             </div>
+                         )}
+                         {mode === 'nurture' && (
+                            <button
+                                onClick={handleNurtureIconClick}
+                                className={`theme-hover transition text-2xl relative ${
+                                    iconTone === 'warm'
+                                        ? 'text-yellow-300'
+                                        : iconTone === 'muted'
+                                            ? 'text-text-secondary/60'
+                                            : 'text-text-secondary hover:text-text-primary'
+                                } ${hasUnreadLetter ? 'animate-pulse' : ''}`}
+                                aria-label="Open Nurture Mode"
+                                title="Nurture Mode"
+                            >
+                                🐾
+                                {hasRecentMilestone && (
+                                    <span className="absolute -top-1 -right-1 text-xs animate-pulse">✨</span>
+                                )}
+                            </button>
                          )}
                          <button onClick={handleInfoButtonClick} className="theme-hover text-text-secondary hover:text-text-primary transition text-2xl relative" aria-label="Pro Tips">
                             ℹ️
@@ -175,7 +205,7 @@ export const Header: React.FC<HeaderProps> = ({ currentView, onNavigate, onToggl
                     view="rewards" 
                     currentView={currentView} 
                     onNavigate={onNavigate}
-                    hidden={mode === 'minimal'}
+                    hidden={mode !== 'rpg'}
                     icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>}
                 />
                  <MobileNavItem 

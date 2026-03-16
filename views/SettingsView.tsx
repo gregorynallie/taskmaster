@@ -9,7 +9,8 @@ export const SettingsView: React.FC = () => {
         mode, setMode, theme, setTheme, clearAllData, resetOnboarding, 
         showSpoofedTasks, toggleShowSpoofedTasks, soundEffectsEnabled, toggleSoundEffects,
         enrichTasksOnCreation, toggleEnrichTasksOnCreation, aiQualityMode, setAIQualityMode,
-        favoriteThemes, toggleFavoriteTheme, shuffleThemesOnLoad, setShuffleThemesOnLoad 
+        favoriteThemes, toggleFavoriteTheme, shuffleThemesOnLoad, setShuffleThemesOnLoad,
+        setCurrentView
     } = useSettings();
     const [isAIQualityModalOpen, setIsAIQualityModalOpen] = useState(false);
 
@@ -183,6 +184,16 @@ export const SettingsView: React.FC = () => {
                             >
                                 <h4 className="font-bold text-text-primary font-header">Minimal Mode</h4>
                                 <p className="text-sm text-text-secondary">A clean, professional interface focused on productivity.</p>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    handleModeChange('nurture');
+                                    setCurrentView('nurture');
+                                }}
+                                className={`flex-1 p-4 rounded-themed border-2 transition-all ${mode === 'nurture' ? 'border-accent bg-primary/10' : 'border-secondary hover:border-primary'}`}
+                            >
+                                <h4 className="font-bold text-text-primary font-header">Nurture Mode</h4>
+                                <p className="text-sm text-text-secondary">A pet + habitat mode that reflects your task patterns over time.</p>
                             </button>
                         </div>
                          {/* Sound Effects Toggle */}

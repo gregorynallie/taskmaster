@@ -12,6 +12,7 @@ import { Mode, Theme } from './types';
 import { JournalView } from './views/JournalView';
 import { YouView } from './views/YouView';
 import { ThemeSandboxView } from './views/ThemeSandboxView';
+import { NurtureView } from './views/NurtureView';
 import { THEMES } from './src/themes';
 import { getAnimationVariant } from './utils/animationUtils';
 import { ViewTransitionAnimationVariant } from './src/animations';
@@ -27,7 +28,7 @@ import { AIDebugFloatingStrip } from './components/AIDebugFloatingStrip';
 
 function App() {
   const { user, isLoading: isAuthLoading } = useAuth();
-  const { theme, setTheme, hasOnboarded, setHasOnboarded, currentView, setCurrentView, mode, setMode, shuffleThemesOnLoad, favoriteThemes } = useSettings();
+  const { theme, setTheme, hasOnboarded, setHasOnboarded, currentView, setCurrentView, mode, setMode, shuffleThemesOnLoad, favoriteThemes, nurturePreviousView } = useSettings();
   const { isDataLoading } = useUserProfile();
   const { completeOnboarding } = useTasks();
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -114,7 +115,13 @@ function App() {
     styleElement.innerHTML = themeDef.customCss || '';
 
   }, [theme]);
-  
+
+  useEffect(() => {
+    if (mode !== 'nurture' && currentView === 'nurture') {
+      setCurrentView(nurturePreviousView || 'today');
+    }
+  }, [mode, currentView, nurturePreviousView, setCurrentView]);
+
   // Logic for handling view transitions
   useEffect(() => {
     if (isFirstRender.current) {
@@ -164,6 +171,7 @@ function App() {
       case 'journal': return <JournalView />;
       case 'settings': return <SettingsView />;
       case 'you': return <YouView />;
+      case 'nurture': return <NurtureView />;
       case 'themeSandbox': return <ThemeSandboxView />;
       default: return <TodayView />;
     }

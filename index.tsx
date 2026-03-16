@@ -5,6 +5,7 @@ import { AuthProvider } from './contexts/AuthProvider';
 import { SettingsProvider } from './contexts/SettingsProvider';
 import { UserProfileProvider } from './contexts/UserProfileProvider';
 import { TasksProvider } from './contexts/TasksProvider';
+import { NurtureProvider } from './contexts/NurtureProvider';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -18,7 +19,9 @@ root.render(
       <SettingsProvider>
         <UserProfileProvider>
           <TasksProvider>
-            <App />
+            <NurtureProvider>
+              <App />
+            </NurtureProvider>
           </TasksProvider>
         </UserProfileProvider>
       </SettingsProvider>

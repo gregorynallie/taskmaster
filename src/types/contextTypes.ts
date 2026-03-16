@@ -20,6 +20,7 @@ export type SettingsContextType = {
     currentView: View;
     setCurrentView: (view: View) => void;
     previousView: View;
+    nurturePreviousView: View;
     soundEffectsEnabled: boolean;
     toggleSoundEffects: () => void;
     enrichTasksOnCreation: boolean;

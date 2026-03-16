@@ -1553,3 +1553,54 @@ export const getClaudeCostEstimateSnapshot = () => {
         estimatedTotalUSD,
     };
 };
+
+export const generateNurtureLetter = async (input: {
+    petName: string;
+    mood: string;
+    categoryBalance: Record<string, number>;
+    streakDays: number;
+    userName?: string;
+    unlockedRecently?: boolean;
+}): Promise<string | null> => {
+    const { petName, mood, categoryBalance, streakDays, userName, unlockedRecently } = input;
+    const categories = Object.entries(categoryBalance)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 4)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(', ');
+
+    if (isNoAIMode()) {
+        const name = userName ? `${userName}` : 'friend';
+        return `Hey ${name}. I've been watching how you've been moving through your week. I'm feeling ${mood.toLowerCase()} lately, and I wanted you to know I'm still right here with you.`;
+    }
+
+    const system = `You write short in-character letters from a virtual pet.
+Output JSON only: { "letter": string }
+Rules:
+- 2-4 sentences only
+- first-person pet voice
+- warm, specific, non-judgmental
+- reference actual behavior patterns provided
+- never mention "AI", "algorithm", "model", or "system"
+- no task commands, no pushy CTA`;
+
+    const user = `Pet name: ${petName}
+Pet mood: ${mood}
+User name: ${userName || 'not provided'}
+Current streak days: ${streakDays}
+Recent category balance: ${categories || 'no strong category pattern'}
+Recent unlock happened: ${unlockedRecently ? 'yes' : 'no'}
+
+Write a warm letter from ${petName}'s perspective. Keep it specific and emotionally grounded.`;
+
+    try {
+        const result = await generateJson<{ letter: string }>(system, user, 400, {
+            feature: 'ui_content',
+            qualityTier: 'low',
+        });
+        return (result.letter || '').trim() || null;
+    } catch (e) {
+        console.error('generateNurtureLetter failed:', e);
+        return null;
+    }
+};

@@ -1,7 +1,7 @@
 import { THEMES } from '../themes';
 
-export type View = 'today' | 'projects' | 'rewards' | 'explore' | 'settings' | 'journal' | 'you' | 'themeSandbox' | 'quests';
-export type Mode = 'rpg' | 'minimal';
+export type View = 'today' | 'projects' | 'rewards' | 'explore' | 'settings' | 'journal' | 'you' | 'themeSandbox' | 'nurture' | 'quests';
+export type Mode = 'rpg' | 'minimal' | 'nurture';
 export type AIQualityMode = 'cost_saver' | 'balanced' | 'high_context' | 'no_ai';
 export type TimeOfDay = 'morning' | 'day' | 'night';
 export type SortByType = 'manual' | 'title' | 'category' | 'duration' | 'date_and_time';

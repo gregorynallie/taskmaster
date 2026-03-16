@@ -56,6 +56,7 @@ export const useSettingsManager = () => {
     const [hasOnboarded, setHasOnboarded] = usePersistentState<boolean>('taskmaster_hasOnboarded', false);
     const [currentView, _setCurrentView] = usePersistentState<View>('taskmaster_currentView', 'today');
     const [previousView, setPreviousView] = usePersistentState<View>('taskmaster_previousView', 'today');
+    const [nurturePreviousView, setNurturePreviousView] = usePersistentState<View>('taskmaster_nurturePreviousView', 'today');
     const [soundEffectsEnabled, setSoundEffectsEnabled] = usePersistentState<boolean>('taskmaster_soundEffectsEnabled', true);
     const [enrichTasksOnCreation, setEnrichTasksOnCreation] = usePersistentState<boolean>('taskmaster_enrichTasksOnCreation', false);
     const [aiQualityMode, setAIQualityMode] = usePersistentState<AIQualityMode>('taskmaster_aiQualityMode', 'cost_saver');
@@ -67,6 +68,9 @@ export const useSettingsManager = () => {
     const setCurrentView = (newView: View) => {
         const normalizedCurrent = normalizeView(currentView);
         const normalizedNext = normalizeView(newView);
+        if (normalizedNext === 'nurture' && normalizedCurrent !== 'nurture') {
+            setNurturePreviousView(normalizedCurrent === 'settings' ? normalizeView(previousView) : normalizedCurrent);
+        }
         if (normalizedCurrent !== 'settings' && normalizedNext === 'settings') {
             setPreviousView(normalizedCurrent);
         }
@@ -80,7 +84,10 @@ export const useSettingsManager = () => {
         if (previousView === 'quests') {
             setPreviousView('projects');
         }
-    }, [currentView, previousView, _setCurrentView, setPreviousView]);
+        if (nurturePreviousView === 'quests') {
+            setNurturePreviousView('projects');
+        }
+    }, [currentView, previousView, nurturePreviousView, _setCurrentView, setPreviousView, setNurturePreviousView]);
 
     const resetOnboarding = () => {
         setHasOnboarded(false);
@@ -132,6 +139,7 @@ export const useSettingsManager = () => {
         currentView: normalizeView(currentView),
         setCurrentView,
         previousView: normalizeView(previousView),
+        nurturePreviousView: normalizeView(nurturePreviousView),
         soundEffectsEnabled,
         toggleSoundEffects,
         enrichTasksOnCreation,

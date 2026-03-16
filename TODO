@@ -40,6 +40,7 @@ TaskMaster Backlog:
     ☐ Move AI API calls behind a server endpoint before wider friend testing (no client-exposed API key) @high
     ☐ Package iOS beta via Capacitor + TestFlight for friend testing before App Store release @high
     ☐ Ensure AI-off/manual-first parity across core flows (no dead ends) @high
+    ☐ Further optimize resource usage across Plan and task views (reduce repeated AI calls, add tighter cache reuse, and lower unnecessary rerenders) @high
     ☐ Run mobile-first optimization pass for core daily workflows @medium
     ☐ Add configurable reminder notifications (phase 1: simple daily check-in) @low
 

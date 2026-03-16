@@ -46,6 +46,9 @@ export const useTaskInteractionAndAnimation = ({
     const dropTargetId = useRef<string | null>(null);
     const completingTaskIdRef = useRef<string | null>(completingTaskId);
     const dismissingTaskIdRef = useRef<string | null>(dismissingTaskId);
+    const isFlipReadyRef = useRef(false);
+    const taskGroupMapRef = useRef<Map<string, string>>(new Map());
+    const groupOffsetsRef = useRef<Map<string, { top: number; left: number }>>(new Map());
 
     useEffect(() => {
         completingTaskIdRef.current = completingTaskId;
@@ -54,6 +57,72 @@ export const useTaskInteractionAndAnimation = ({
     useEffect(() => {
         dismissingTaskIdRef.current = dismissingTaskId;
     }, [dismissingTaskId]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        const primeBoundingBoxes = () => {
+            const containerNode = containerRef.current;
+            if (!containerNode) return;
+
+            const seededBoxes = new Map<string, DOMRect>();
+            const seededGroups = new Map<string, string>();
+            const seededGroupOffsets = new Map<string, { top: number; left: number }>();
+            const groupNodes = containerNode.querySelectorAll<HTMLElement>('[data-flip-group]');
+            groupNodes.forEach(node => {
+                const groupName = node.dataset.flipGroup;
+                if (!groupName) return;
+                const rect = node.getBoundingClientRect();
+                seededGroupOffsets.set(groupName, { top: rect.top, left: rect.left });
+            });
+            const taskNodes = containerNode.querySelectorAll<HTMLElement>('[data-task-id]');
+            taskNodes.forEach(node => {
+                const taskId = node.dataset.taskId;
+                if (!taskId) return;
+                seededBoxes.set(taskId, node.getBoundingClientRect());
+                const groupContainer = node.closest<HTMLElement>('[data-flip-group]');
+                seededGroups.set(taskId, groupContainer?.dataset.flipGroup || '__all__');
+            });
+
+            if (seededBoxes.size > 0) {
+                boundingBoxes.current = seededBoxes;
+                taskGroupMapRef.current = seededGroups;
+                groupOffsetsRef.current = seededGroupOffsets;
+                isInitialMount.current = false;
+            }
+        };
+
+        const markFlipReady = () => {
+            if (isCancelled) return;
+            isFlipReadyRef.current = true;
+            primeBoundingBoxes();
+        };
+
+        const fonts = 'fonts' in document ? (document as Document & { fonts: FontFaceSet }).fonts : null;
+        const isFontsLoaded = !fonts || fonts.status === 'loaded';
+        if (isFontsLoaded) {
+            markFlipReady();
+            return () => {
+                isCancelled = true;
+            };
+        }
+
+        const fallbackTimer = window.setTimeout(markFlipReady, 1500);
+        fonts.ready
+            .then(() => {
+                window.clearTimeout(fallbackTimer);
+                markFlipReady();
+            })
+            .catch(() => {
+                window.clearTimeout(fallbackTimer);
+                markFlipReady();
+            });
+
+        return () => {
+            isCancelled = true;
+            window.clearTimeout(fallbackTimer);
+        };
+    }, []);
 
     const toggleSelectMode = () => { setIsSelectMode(prev => !prev); setSelectedTaskIds(new Set()); };
     const toggleTaskSelection = (taskId: string) => {
@@ -172,13 +241,56 @@ export const useTaskInteractionAndAnimation = ({
         const containerNode = containerRef.current;
         if (!containerNode) return;
         const newBoxes = new Map<string, DOMRect>();
+        const newTaskGroups = new Map<string, string>();
+        const newGroupOffsets = new Map<string, { top: number; left: number }>();
+        const groupNodes = containerNode.querySelectorAll<HTMLElement>('[data-flip-group]');
+        groupNodes.forEach(node => {
+            const groupName = node.dataset.flipGroup;
+            if (!groupName) return;
+            const rect = node.getBoundingClientRect();
+            newGroupOffsets.set(groupName, { top: rect.top, left: rect.left });
+        });
         const taskNodes = containerNode.querySelectorAll<HTMLElement>('[data-task-id]');
-        taskNodes.forEach(node => { const taskId = node.dataset.taskId; if (taskId) newBoxes.set(taskId, node.getBoundingClientRect()); });
+        taskNodes.forEach(node => {
+            const taskId = node.dataset.taskId;
+            if (!taskId) return;
+            newBoxes.set(taskId, node.getBoundingClientRect());
+            const groupContainer = node.closest<HTMLElement>('[data-flip-group]');
+            newTaskGroups.set(taskId, groupContainer?.dataset.flipGroup || '__all__');
+        });
         const suggestionsJustLoaded = prevIsSuggestionsLoading.current && !isSuggestionsLoading;
         prevIsSuggestionsLoading.current = isSuggestionsLoading;
-        if (isInitialMount.current) { if (newBoxes.size > 0) { boundingBoxes.current = newBoxes; isInitialMount.current = false; } return; }
-        if (suggestionsJustLoaded || draggedId || isDropping.current || activeAnimations.size > 0) {
+        const isCompletingCardStillVisible = !!completingTaskIdRef.current && newBoxes.has(completingTaskIdRef.current);
+        const isDismissingCardStillVisible = !!dismissingTaskIdRef.current && newBoxes.has(dismissingTaskIdRef.current);
+        if (!isFlipReadyRef.current) {
+            if (newBoxes.size > 0) {
+                boundingBoxes.current = newBoxes;
+                taskGroupMapRef.current = newTaskGroups;
+                groupOffsetsRef.current = newGroupOffsets;
+                isInitialMount.current = false;
+            }
+            return;
+        }
+        if (isInitialMount.current) {
+            if (newBoxes.size > 0) {
+                boundingBoxes.current = newBoxes;
+                taskGroupMapRef.current = newTaskGroups;
+                groupOffsetsRef.current = newGroupOffsets;
+                isInitialMount.current = false;
+            }
+            return;
+        }
+        if (
+            suggestionsJustLoaded ||
+            draggedId ||
+            isDropping.current ||
+            activeAnimations.size > 0 ||
+            isCompletingCardStillVisible ||
+            isDismissingCardStillVisible
+        ) {
             boundingBoxes.current = newBoxes;
+            taskGroupMapRef.current = newTaskGroups;
+            groupOffsetsRef.current = newGroupOffsets;
             if (isDropping.current) isDropping.current = false;
             return;
         }
@@ -189,7 +301,16 @@ export const useTaskInteractionAndAnimation = ({
             if (taskId === completingTaskIdRef.current || taskId === dismissingTaskIdRef.current) return;
             const prevBox = boundingBoxes.current.get(taskId); const newBox = newBoxes.get(taskId);
             if (prevBox && newBox) {
-                const deltaY = prevBox.top - newBox.top; const deltaX = prevBox.left - newBox.left;
+                const prevGroup = taskGroupMapRef.current.get(taskId) || '__all__';
+                const nextGroup = newTaskGroups.get(taskId) || '__all__';
+                // Avoid FLIP across group boundaries (Today -> Tomorrow, etc.) to prevent jerk.
+                if (prevGroup !== nextGroup) return;
+                const prevGroupOffset = groupOffsetsRef.current.get(prevGroup) || { top: 0, left: 0 };
+                const nextGroupOffset = newGroupOffsets.get(nextGroup) || { top: 0, left: 0 };
+                // Compute movement relative to each group's container to avoid cross-group layout jitter.
+                const deltaY = (prevBox.top - prevGroupOffset.top) - (newBox.top - nextGroupOffset.top);
+                const deltaX = (prevBox.left - prevGroupOffset.left) - (newBox.left - nextGroupOffset.left);
+                if (Math.abs(deltaY) > 300 || Math.abs(deltaX) > 300) return;
                 if (deltaY !== 0 || deltaX !== 0) {
                     isAnimating = true;
                     requestAnimationFrame(() => {
@@ -201,7 +322,9 @@ export const useTaskInteractionAndAnimation = ({
         });
         if (isAnimating) initiateListShuffleAnimation();
         boundingBoxes.current = newBoxes;
-    }, [tasksToRender, draggedId, groupedTasks, isSuggestionsLoading, activeAnimations, initiateListShuffleAnimation]);
+        taskGroupMapRef.current = newTaskGroups;
+        groupOffsetsRef.current = newGroupOffsets;
+    }, [tasksToRender, draggedId, groupedTasks, groupBy, isSuggestionsLoading, activeAnimations, initiateListShuffleAnimation]);
 
     return {
         draggedId, liveOrderedTasks, isSelectMode, selectedTaskIds, isBulkEditModalOpen, setIsBulkEditModalOpen,

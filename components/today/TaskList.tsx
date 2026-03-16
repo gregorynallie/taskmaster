@@ -100,11 +100,17 @@ export const TaskList: React.FC<TaskListProps> = React.memo((props) => {
                                 </span>
                             </div>
                         </button>
-                        {!collapsedGroups.has(groupName) && ( <div className="pt-2"> {renderTaskList(groupTasks)} </div> )}
+                        {!collapsedGroups.has(groupName) && (
+                            <div className="pt-2" data-flip-group={groupName}>
+                                {renderTaskList(groupTasks)}
+                            </div>
+                        )}
                     </div>
                 ))
             ) : tasksToRender.length > 0 ? (
-                <div className="space-y-0"> {renderTaskList(tasksToRender)} </div>
+                <div className="space-y-0" data-flip-group="__all__">
+                    {renderTaskList(tasksToRender)}
+                </div>
             ) : null}
 
             {groupBy === 'none' && activeTasks.length < 3 && !isSuggestionsLoading && !suggestionsError && dailySuggestions.length > 0 &&
